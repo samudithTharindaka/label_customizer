@@ -9,4 +9,6 @@ build/
 *~
 .vscode/
 .idea/
+*.py[cod]
+*$py.class
 
