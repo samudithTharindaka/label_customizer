@@ -1,0 +1,111 @@
+<div class="frappe-control" data-fieldtype="HTML" data-fieldname="gl_custom_html">
+    <div class="form-message blue" style="margin-bottom: 20px;">
+        <div>
+            <strong>🎯 General Ledger - Custom View</strong>
+            <p class="text-muted" style="margin-top: 5px;">Enhanced General Ledger report with custom filters and features</p>
+        </div>
+    </div>
+    
+    <!-- Custom Filter Section -->
+    <div class="custom-filter-section" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        <h5 style="margin-bottom: 15px;">📊 Custom Filters</h5>
+        
+        <div class="row">
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label class="control-label">Company *</label>
+                    <select class="form-control" id="custom_company">
+                        <option value="">Select Company</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label class="control-label">From Date *</label>
+                    <input type="date" class="form-control" id="custom_from_date">
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label class="control-label">To Date *</label>
+                    <input type="date" class="form-control" id="custom_to_date">
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label class="control-label">Account</label>
+                    <input type="text" class="form-control" id="custom_account" placeholder="Search Account">
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label class="control-label">Department</label>
+                    <select class="form-control" id="custom_department">
+                        <option value="">All Departments</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label class="control-label">Project</label>
+                    <select class="form-control" id="custom_project">
+                        <option value="">All Projects</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label class="control-label">Cost Center</label>
+                    <select class="form-control" id="custom_cost_center">
+                        <option value="">All Cost Centers</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label class="control-label">Voucher Type</label>
+                    <select class="form-control" id="custom_voucher_type">
+                        <option value="">All Types</option>
+                        <option value="Sales Invoice">Sales Invoice</option>
+                        <option value="Purchase Invoice">Purchase Invoice</option>
+                        <option value="Payment Entry">Payment Entry</option>
+                        <option value="Journal Entry">Journal Entry</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-12">
+                <button class="btn btn-primary btn-sm" id="btn_apply_filters">
+                    <i class="fa fa-filter"></i> Apply Filters & View Report
+                </button>
+                <button class="btn btn-default btn-sm" id="btn_reset_filters">
+                    <i class="fa fa-refresh"></i> Reset
+                </button>
+                <button class="btn btn-success btn-sm" id="btn_export_excel" style="float: right;">
+                    <i class="fa fa-download"></i> Export to Excel
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Report Container -->
+    <div id="report_container" style="min-height: 400px;">
+        <div class="text-center text-muted" style="padding: 60px 20px;">
+            <i class="fa fa-filter" style="font-size: 48px; opacity: 0.3;"></i>
+            <p style="margin-top: 20px; font-size: 16px;">Select filters and click "Apply Filters" to view the report</p>
+        </div>
+    </div>
+</div>
+
+
