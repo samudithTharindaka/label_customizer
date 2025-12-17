@@ -175,3 +175,5 @@ After pushing, add the app to Frappe Cloud:
 **Solution:** Simplified hooks.py and removed unnecessary public JS files
 **Result:** Clean, buildable app ready for Frappe Cloud deployment
 
+
+
