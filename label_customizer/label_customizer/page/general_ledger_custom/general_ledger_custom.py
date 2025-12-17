@@ -46,6 +46,41 @@ def get_report_data(filters):
         if filters.get('voucher_type'):
             report_filters['voucher_type'] = filters.get('voucher_type')
         
+        if filters.get('party_type'):
+            report_filters['party_type'] = filters.get('party_type')
+        
+        if filters.get('party'):
+            report_filters['party'] = filters.get('party')
+        
+        if filters.get('group_by'):
+            report_filters['group_by'] = filters.get('group_by')
+        
+        if filters.get('include_dimensions'):
+            report_filters['include_dimensions'] = int(filters.get('include_dimensions', 0))
+        
+        if filters.get('show_opening_entries'):
+            report_filters['show_opening_entries'] = filters.get('show_opening_entries')
+        
+        if filters.get('show_cancelled_entries'):
+            report_filters['show_cancelled_entries'] = int(filters.get('show_cancelled_entries', 0))
+        
+        if filters.get('include_default_book_entries'):
+            report_filters['include_default_book_entries'] = int(filters.get('include_default_book_entries', 0))
+        
+        # Add aging filters (Note: General Ledger doesn't natively support aging,
+        # but we pass them through for potential custom implementations)
+        if filters.get('ageing_based_on'):
+            report_filters['ageing_based_on'] = filters.get('ageing_based_on')
+        
+        if filters.get('calculate_ageing_with'):
+            report_filters['report_date'] = filters.get('to_date')  # Use to_date as report_date for aging
+        
+        if filters.get('ageing_range'):
+            report_filters['range'] = filters.get('ageing_range')
+        
+        # Convert to frappe._dict for attribute-style access
+        report_filters = frappe._dict(report_filters)
+        
         # Execute the standard General Ledger report
         columns, data = execute(report_filters)
         
@@ -58,8 +93,18 @@ def get_report_data(filters):
         }
         
     except Exception as e:
-        frappe.log_error(frappe.get_traceback(), _("General Ledger Custom Page Error"))
-        frappe.throw(_("Error generating report: {0}").format(str(e)))
+        error_message = str(e)
+        traceback_str = frappe.get_traceback()
+        frappe.log_error(traceback_str, _("General Ledger Custom Page Error"))
+        
+        # Return detailed error for debugging
+        return {
+            'columns': [],
+            'data': [],
+            'error': True,
+            'message': error_message,
+            'traceback': traceback_str if frappe.conf.developer_mode else None
+        }
 
 
 @frappe.whitelist()
