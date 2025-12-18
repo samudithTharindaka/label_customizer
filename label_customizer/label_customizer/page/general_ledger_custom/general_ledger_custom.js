@@ -532,8 +532,19 @@ class GeneralLedgerCustom {
 				placeholder: 'Select Account...',
 				get_data: function(txt) {
 					const company = me.wrapper.find('#custom_company').val();
-					return frappe.db.get_link_options('Account', txt, {
-						company: company
+					const filters = company ? { company: company } : {};
+					return new Promise((resolve) => {
+						frappe.call({
+							method: 'frappe.desk.search.search_link',
+							args: {
+								doctype: 'Account',
+								txt: txt || '',
+								filters: filters
+							},
+							callback: function(r) {
+								resolve(r.message || []);
+							}
+						});
 					});
 				}
 			},
@@ -560,8 +571,19 @@ class GeneralLedgerCustom {
 				placeholder: 'Select Project...',
 				get_data: function(txt) {
 					const company = me.wrapper.find('#custom_company').val();
-					return frappe.db.get_link_options('Project', txt, {
-						company: company
+					const filters = company ? { company: company } : {};
+					return new Promise((resolve) => {
+						frappe.call({
+							method: 'frappe.desk.search.search_link',
+							args: {
+								doctype: 'Project',
+								txt: txt || '',
+								filters: filters
+							},
+							callback: function(r) {
+								resolve(r.message || []);
+							}
+						});
 					});
 				}
 			},
@@ -588,8 +610,19 @@ class GeneralLedgerCustom {
 				placeholder: 'Select Cost Center...',
 				get_data: function(txt) {
 					const company = me.wrapper.find('#custom_company').val();
-					return frappe.db.get_link_options('Cost Center', txt, {
-						company: company
+					const filters = company ? { company: company } : {};
+					return new Promise((resolve) => {
+						frappe.call({
+							method: 'frappe.desk.search.search_link',
+							args: {
+								doctype: 'Cost Center',
+								txt: txt || '',
+								filters: filters
+							},
+							callback: function(r) {
+								resolve(r.message || []);
+							}
+						});
 					});
 				}
 			},
@@ -649,7 +682,19 @@ class GeneralLedgerCustom {
 				label: '',
 				placeholder: 'Select Customer...',
 				get_data: function(txt) {
-					return frappe.db.get_link_options('Customer', txt);
+					return new Promise((resolve) => {
+						frappe.call({
+							method: 'frappe.desk.search.search_link',
+							args: {
+								doctype: 'Customer',
+								txt: txt || '',
+								filters: {}
+							},
+							callback: function(r) {
+								resolve(r.message || []);
+							}
+						});
+					});
 				}
 			},
 			parent: fieldWrapper,
@@ -674,7 +719,19 @@ class GeneralLedgerCustom {
 				label: '',
 				placeholder: 'Select Supplier...',
 				get_data: function(txt) {
-					return frappe.db.get_link_options('Supplier', txt);
+					return new Promise((resolve) => {
+						frappe.call({
+							method: 'frappe.desk.search.search_link',
+							args: {
+								doctype: 'Supplier',
+								txt: txt || '',
+								filters: {}
+							},
+							callback: function(r) {
+								resolve(r.message || []);
+							}
+						});
+					});
 				}
 			},
 			parent: fieldWrapper,
@@ -819,7 +876,19 @@ class GeneralLedgerCustom {
 				label: '',
 				placeholder: `Select ${partyType}...`,
 				get_data: function(txt) {
-					return frappe.db.get_link_options(partyType, txt);
+					return new Promise((resolve) => {
+						frappe.call({
+							method: 'frappe.desk.search.search_link',
+							args: {
+								doctype: partyType,
+								txt: txt || '',
+								filters: {}
+							},
+							callback: function(r) {
+								resolve(r.message || []);
+							}
+						});
+					});
 				}
 			},
 			parent: fieldWrapper,
