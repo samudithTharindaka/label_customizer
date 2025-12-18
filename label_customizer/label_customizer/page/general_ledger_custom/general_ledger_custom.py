@@ -286,15 +286,39 @@ def get_combined_aging_report(filters):
             'range': ageing_range,
         })
         
+        # Add optional filters
+        if filters.get('cost_center'):
+            base_filters['cost_center'] = filters.get('cost_center')
+        
+        # Initialize results
+        rec_columns, rec_data, rec_summary = [], [], []
+        pay_columns, pay_data, pay_summary = [], [], []
+        rec_total = 0
+        pay_total = 0
+        
         # Get Receivables (Customer)
         receivable_filters = frappe._dict(base_filters.copy())
         receivable_filters['party_type'] = 'Customer'
         receivable_filters['account_type'] = 'Receivable'
         
+        # Add customer filter if provided
+        if filters.get('customer'):
+            customer_list = filters.get('customer')
+            if isinstance(customer_list, str):
+                customer_list = [customer_list]
+            receivable_filters['party'] = customer_list
+        
         try:
-            rec_columns, rec_data, rec_message, rec_chart, rec_summary, rec_skip = execute_receivable(receivable_filters)
+            result = execute_receivable(receivable_filters)
+            rec_columns = result[0] if len(result) > 0 else []
+            rec_data = result[1] if len(result) > 1 else []
+            rec_summary = result[4] if len(result) > 4 else []
+            
+            # Calculate total from data (outstanding_amount field)
+            for row in rec_data:
+                if isinstance(row, dict) and row.get('outstanding'):
+                    rec_total += float(row.get('outstanding') or 0)
         except Exception as e:
-            rec_columns, rec_data, rec_summary = [], [], []
             frappe.log_error(str(e), "Combined Aging - Receivables Error")
         
         # Get Payables (Supplier)
@@ -302,22 +326,38 @@ def get_combined_aging_report(filters):
         payable_filters['party_type'] = 'Supplier'
         payable_filters['account_type'] = 'Payable'
         
+        # Add supplier filter if provided
+        if filters.get('supplier'):
+            supplier_list = filters.get('supplier')
+            if isinstance(supplier_list, str):
+                supplier_list = [supplier_list]
+            payable_filters['party'] = supplier_list
+        
         try:
-            pay_columns, pay_data, pay_message, pay_chart, pay_summary, pay_skip = execute_payable(payable_filters)
+            result = execute_payable(payable_filters)
+            pay_columns = result[0] if len(result) > 0 else []
+            pay_data = result[1] if len(result) > 1 else []
+            pay_summary = result[4] if len(result) > 4 else []
+            
+            # Calculate total from data (outstanding_amount field)
+            for row in pay_data:
+                if isinstance(row, dict) and row.get('outstanding'):
+                    pay_total += float(row.get('outstanding') or 0)
         except Exception as e:
-            pay_columns, pay_data, pay_summary = [], [], []
             frappe.log_error(str(e), "Combined Aging - Payables Error")
         
         return {
             'receivables': {
                 'columns': rec_columns,
                 'data': rec_data,
-                'report_summary': rec_summary if 'rec_summary' in dir() else []
+                'report_summary': rec_summary,
+                'total': rec_total
             },
             'payables': {
                 'columns': pay_columns,
                 'data': pay_data,
-                'report_summary': pay_summary if 'pay_summary' in dir() else []
+                'report_summary': pay_summary,
+                'total': pay_total
             },
             'message': _('Combined aging report generated successfully'),
             'report_mode': 'combined'
@@ -329,8 +369,8 @@ def get_combined_aging_report(filters):
         frappe.log_error(traceback_str, _("Combined Aging Report Error"))
         
         return {
-            'receivables': {'columns': [], 'data': [], 'report_summary': []},
-            'payables': {'columns': [], 'data': [], 'report_summary': []},
+            'receivables': {'columns': [], 'data': [], 'report_summary': [], 'total': 0},
+            'payables': {'columns': [], 'data': [], 'report_summary': [], 'total': 0},
             'error': True,
             'message': error_message,
             'traceback': traceback_str if frappe.conf.developer_mode else None

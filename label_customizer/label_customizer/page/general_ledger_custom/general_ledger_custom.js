@@ -57,18 +57,29 @@ frappe.pages['general-ledger-custom'].on_page_load = function(wrapper) {
 			font-weight: 500;
 			text-align: right;
 		}
-		.party-multiselect {
-			min-height: 80px;
-			max-height: 150px;
+		.party-link-field {
+			min-height: 34px;
 		}
-		.party-multiselect option:checked {
-			background: linear-gradient(0deg, #007bff 0%, #007bff 100%);
-			color: white;
+		.party-link-field .frappe-control {
+			margin-bottom: 0;
 		}
-		#custom_party_container small {
-			display: block;
-			margin-top: 4px;
-			font-size: 11px;
+		.party-link-field .form-control {
+			height: 34px;
+		}
+		.party-link-field .control-input-wrapper {
+			margin-bottom: 0;
+		}
+		.party-link-field .pill-container {
+			border: 1px solid #ced4da;
+			border-radius: 4px;
+			padding: 4px;
+			min-height: 34px;
+		}
+		.receivable-row:hover {
+			background-color: #d4edda !important;
+		}
+		.payable-row:hover {
+			background-color: #fff3cd !important;
 		}
 		#report_container tbody tr.table-info {
 			background-color: #e3f2fd !important;
@@ -219,7 +230,7 @@ class GeneralLedgerCustom {
             <div class="col-md-3">
                 <div class="form-group">
                     <label class="control-label">Account</label>
-                    <input type="text" class="form-control" id="custom_account" placeholder="Search Account">
+                    <div id="custom_account_container"></div>
                 </div>
             </div>
         </div>
@@ -237,18 +248,14 @@ class GeneralLedgerCustom {
             <div class="col-md-3">
                 <div class="form-group">
                     <label class="control-label">Project</label>
-                    <select class="form-control" id="custom_project">
-                        <option value="">All Projects</option>
-                    </select>
+                    <div id="custom_project_container"></div>
                 </div>
             </div>
             
             <div class="col-md-3">
                 <div class="form-group">
                     <label class="control-label">Cost Center</label>
-                    <select class="form-control" id="custom_cost_center">
-                        <option value="">All Cost Centers</option>
-                    </select>
+                    <div id="custom_cost_center_container"></div>
                 </div>
             </div>
             
@@ -435,12 +442,42 @@ class GeneralLedgerCustom {
             </div>
             
             <div class="row">
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label class="control-label">Customer (Receivables)</label>
+                        <div id="combined_customer_container"></div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label class="control-label">Supplier (Payables)</label>
+                        <div id="combined_supplier_container"></div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label class="control-label">Cost Center</label>
+                        <select class="form-control" id="combined_cost_center">
+                            <option value="">All Cost Centers</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="form-group" style="padding-top: 25px;">
+                        <button class="btn btn-success btn-sm btn-block" id="btn_combined_report">
+                            <i class="fa fa-clock-o"></i> Generate Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
                 <div class="col-md-12">
-                    <button class="btn btn-success btn-sm" id="btn_combined_report">
-                        <i class="fa fa-clock-o"></i> Generate Combined Aging Report
-                    </button>
                     <button class="btn btn-default btn-sm" id="btn_combined_reset">
-                        <i class="fa fa-refresh"></i> Reset
+                        <i class="fa fa-refresh"></i> Reset Filters
                     </button>
                 </div>
             </div>
@@ -466,11 +503,100 @@ class GeneralLedgerCustom {
 		// Initialize party field
 		this.init_party_field();
 		
+		// Initialize Account, Project, Cost Center fields
+		this.init_account_field();
+		this.init_project_field();
+		this.init_cost_center_field();
+		
 		// Bind events
 		this.bind_events();
 		
 		// Setup tabs
 		this.setup_tabs();
+	}
+	
+	init_account_field() {
+		const me = this;
+		const container = this.wrapper.find('#custom_account_container');
+		container.empty();
+		
+		const fieldWrapper = $('<div class="frappe-control party-link-field"></div>');
+		container.append(fieldWrapper);
+		
+		this.account_control = frappe.ui.form.make_control({
+			df: {
+				fieldtype: 'MultiSelectList',
+				fieldname: 'account',
+				options: 'Account',
+				label: '',
+				placeholder: 'Select Account...',
+				get_data: function(txt) {
+					const company = me.wrapper.find('#custom_company').val();
+					return frappe.db.get_link_options('Account', txt, {
+						company: company
+					});
+				}
+			},
+			parent: fieldWrapper,
+			render_input: true
+		});
+		this.account_control.refresh();
+	}
+	
+	init_project_field() {
+		const me = this;
+		const container = this.wrapper.find('#custom_project_container');
+		container.empty();
+		
+		const fieldWrapper = $('<div class="frappe-control party-link-field"></div>');
+		container.append(fieldWrapper);
+		
+		this.project_control = frappe.ui.form.make_control({
+			df: {
+				fieldtype: 'MultiSelectList',
+				fieldname: 'project',
+				options: 'Project',
+				label: '',
+				placeholder: 'Select Project...',
+				get_data: function(txt) {
+					const company = me.wrapper.find('#custom_company').val();
+					return frappe.db.get_link_options('Project', txt, {
+						company: company
+					});
+				}
+			},
+			parent: fieldWrapper,
+			render_input: true
+		});
+		this.project_control.refresh();
+	}
+	
+	init_cost_center_field() {
+		const me = this;
+		const container = this.wrapper.find('#custom_cost_center_container');
+		container.empty();
+		
+		const fieldWrapper = $('<div class="frappe-control party-link-field"></div>');
+		container.append(fieldWrapper);
+		
+		this.cost_center_control = frappe.ui.form.make_control({
+			df: {
+				fieldtype: 'MultiSelectList',
+				fieldname: 'cost_center',
+				options: 'Cost Center',
+				label: '',
+				placeholder: 'Select Cost Center...',
+				get_data: function(txt) {
+					const company = me.wrapper.find('#custom_company').val();
+					return frappe.db.get_link_options('Cost Center', txt, {
+						company: company
+					});
+				}
+			},
+			parent: fieldWrapper,
+			render_input: true
+		});
+		this.cost_center_control.refresh();
 	}
 
 	setup_tabs() {
@@ -493,6 +619,91 @@ class GeneralLedgerCustom {
 		// Load companies for combined tab
 		this.load_combined_companies();
 		this.set_combined_default_date();
+		
+		// Initialize combined tab filter fields
+		this.init_combined_customer_field();
+		this.init_combined_supplier_field();
+		
+		// Company change event for combined tab
+		this.wrapper.find('#combined_company').on('change', function() {
+			const company = $(this).val();
+			if (company) {
+				me.load_combined_cost_centers(company);
+			}
+		});
+	}
+	
+	init_combined_customer_field() {
+		const me = this;
+		const container = this.wrapper.find('#combined_customer_container');
+		container.empty();
+		
+		const fieldWrapper = $('<div class="frappe-control party-link-field"></div>');
+		container.append(fieldWrapper);
+		
+		this.combined_customer_control = frappe.ui.form.make_control({
+			df: {
+				fieldtype: 'MultiSelectList',
+				fieldname: 'combined_customer',
+				options: 'Customer',
+				label: '',
+				placeholder: 'Select Customer...',
+				get_data: function(txt) {
+					return frappe.db.get_link_options('Customer', txt);
+				}
+			},
+			parent: fieldWrapper,
+			render_input: true
+		});
+		this.combined_customer_control.refresh();
+	}
+	
+	init_combined_supplier_field() {
+		const me = this;
+		const container = this.wrapper.find('#combined_supplier_container');
+		container.empty();
+		
+		const fieldWrapper = $('<div class="frappe-control party-link-field"></div>');
+		container.append(fieldWrapper);
+		
+		this.combined_supplier_control = frappe.ui.form.make_control({
+			df: {
+				fieldtype: 'MultiSelectList',
+				fieldname: 'combined_supplier',
+				options: 'Supplier',
+				label: '',
+				placeholder: 'Select Supplier...',
+				get_data: function(txt) {
+					return frappe.db.get_link_options('Supplier', txt);
+				}
+			},
+			parent: fieldWrapper,
+			render_input: true
+		});
+		this.combined_supplier_control.refresh();
+	}
+	
+	load_combined_cost_centers(company) {
+		const me = this;
+		frappe.call({
+			method: 'frappe.client.get_list',
+			args: {
+				doctype: 'Cost Center',
+				filters: { company: company },
+				fields: ['name'],
+				limit_page_length: 0,
+				order_by: 'name'
+			},
+			callback: function(r) {
+				const $select = me.wrapper.find('#combined_cost_center');
+				$select.empty().append('<option value="">All Cost Centers</option>');
+				if (r.message) {
+					r.message.forEach(function(cc) {
+						$select.append(`<option value="${cc.name}">${cc.name}</option>`);
+					});
+				}
+			}
+		});
 	}
 	
 	load_combined_companies() {
@@ -548,8 +759,16 @@ class GeneralLedgerCustom {
 			const company = $(this).val();
 			if (company) {
 				me.load_departments(company);
-				me.load_projects(company);
-				me.load_cost_centers(company);
+				// Clear and refresh Account, Project, Cost Center fields (they filter by company)
+				if (me.account_control) {
+					me.account_control.set_value([]);
+				}
+				if (me.project_control) {
+					me.project_control.set_value([]);
+				}
+				if (me.cost_center_control) {
+					me.cost_center_control.set_value([]);
+				}
 			}
 		});
 		
@@ -574,43 +793,40 @@ class GeneralLedgerCustom {
 		const partyType = this.wrapper.find('#custom_party_type').val();
 		const container = this.wrapper.find('#custom_party_container');
 		
-		// Clear existing field
+		// Clear existing field and control
 		container.empty();
+		if (this.party_control) {
+			this.party_control = null;
+		}
+		this.selected_parties = [];
 		
 		if (!partyType) {
-			// Show disabled select when no party type selected
-			container.html('<select class="form-control" id="custom_party" disabled><option value="">Select Party Type first</option></select>');
-			this.party_field = null;
+			// Show disabled input when no party type selected
+			container.html('<input type="text" class="form-control" disabled placeholder="Select Party Type first">');
 			return;
 		}
 		
-		// Create multi-select dropdown with multiple attribute
-		const select = $('<select class="form-control party-multiselect" id="custom_party" multiple></select>');
-		container.append(select);
+		// Create container for Frappe control
+		const fieldWrapper = $('<div class="frappe-control party-link-field"></div>');
+		container.append(fieldWrapper);
 		
-		// Add helpful text
-		container.append('<small class="text-muted">Hold Ctrl/Cmd to select multiple</small>');
-		
-		// Load parties for this party type
-		frappe.call({
-			method: 'frappe.client.get_list',
-			args: {
-				doctype: partyType,
-				fields: ['name'],
-				limit_page_length: 0,
-				order_by: 'name'
-			},
-			callback: function(r) {
-				if (r.message) {
-					r.message.forEach(function(party) {
-						select.append($('<option></option>').attr('value', party.name).text(party.name));
-					});
+		// Create Frappe MultiSelectList field (same as native General Ledger)
+		this.party_control = frappe.ui.form.make_control({
+			df: {
+				fieldtype: 'MultiSelectList',
+				fieldname: 'party',
+				options: partyType,
+				label: '',
+				placeholder: `Select ${partyType}...`,
+				get_data: function(txt) {
+					return frappe.db.get_link_options(partyType, txt);
 				}
-			}
+			},
+			parent: fieldWrapper,
+			render_input: true
 		});
 		
-		// Store reference
-		this.party_field = select;
+		this.party_control.refresh();
 	}
 
 	set_default_dates() {
@@ -721,25 +937,34 @@ class GeneralLedgerCustom {
 	}
 
 	get_filters() {
-		// Get party values - could be array from multi-select
-		let partyValue = this.party_field ? this.party_field.val() : this.wrapper.find('#custom_party').val();
-		// Ensure it's an array, filter empty values
-		if (partyValue) {
-			if (!Array.isArray(partyValue)) {
-				partyValue = [partyValue];
+		// Helper function to get values from MultiSelectList controls
+		const getControlValue = (control) => {
+			if (!control) return null;
+			let value = control.get_value();
+			if (value) {
+				if (!Array.isArray(value)) {
+					value = [value];
+				}
+				value = value.filter(v => v && (typeof v === 'string' ? v.trim() : v));
+				if (value.length === 0) return null;
 			}
-			partyValue = partyValue.filter(v => v && v.trim());
-			if (partyValue.length === 0) partyValue = null;
-		}
+			return value;
+		};
+		
+		// Get values from MultiSelectList controls
+		const partyValue = getControlValue(this.party_control);
+		const accountValue = getControlValue(this.account_control);
+		const projectValue = getControlValue(this.project_control);
+		const costCenterValue = getControlValue(this.cost_center_control);
 		
 		return {
 			company: this.wrapper.find('#custom_company').val(),
 			from_date: this.wrapper.find('#custom_from_date').val(),
 			to_date: this.wrapper.find('#custom_to_date').val(),
-			account: this.wrapper.find('#custom_account').val(),
+			account: accountValue,
 			department: this.wrapper.find('#custom_department').val(),
-			project: this.wrapper.find('#custom_project').val(),
-			cost_center: this.wrapper.find('#custom_cost_center').val(),
+			project: projectValue,
+			cost_center: costCenterValue,
 			voucher_type: this.wrapper.find('#custom_voucher_type').val(),
 			party_type: this.wrapper.find('#custom_party_type').val(),
 			party: partyValue,
@@ -1031,17 +1256,24 @@ class GeneralLedgerCustom {
 
 	reset_filters() {
 		this.wrapper.find('#custom_company').val('');
-		this.wrapper.find('#custom_account').val('');
 		this.wrapper.find('#custom_department').val('');
-		this.wrapper.find('#custom_project').val('');
-		this.wrapper.find('#custom_cost_center').val('');
 		this.wrapper.find('#custom_voucher_type').val('');
 		this.wrapper.find('#custom_party_type').val('');
-		if (this.party_field) {
-			this.party_field.val('');
-		} else {
-			this.wrapper.find('#custom_party').val('');
+		
+		// Clear MultiSelectList controls
+		if (this.account_control) {
+			this.account_control.set_value([]);
 		}
+		if (this.project_control) {
+			this.project_control.set_value([]);
+		}
+		if (this.cost_center_control) {
+			this.cost_center_control.set_value([]);
+		}
+		if (this.party_control) {
+			this.party_control.set_value([]);
+		}
+		
 		this.init_party_field(); // Reinitialize to show placeholder
 		this.wrapper.find('#custom_group_by').val('');
 		this.wrapper.find('#custom_include_dimensions').val('0');
@@ -1076,6 +1308,14 @@ class GeneralLedgerCustom {
 		this.wrapper.find('#combined_company').val(this.wrapper.find('#combined_company option:first').next().val());
 		this.wrapper.find('#combined_ageing_based_on').val('Due Date');
 		this.wrapper.find('#combined_ageing_range').val('30, 60, 90, 120');
+		this.wrapper.find('#combined_cost_center').val('');
+		// Clear customer and supplier controls
+		if (this.combined_customer_control) {
+			this.combined_customer_control.set_value([]);
+		}
+		if (this.combined_supplier_control) {
+			this.combined_supplier_control.set_value([]);
+		}
 		this.set_combined_default_date();
 		
 		this.wrapper.find('#combined_report_container').html(`
@@ -1093,6 +1333,26 @@ class GeneralLedgerCustom {
 		const reportDate = this.wrapper.find('#combined_report_date').val();
 		const ageingBasedOn = this.wrapper.find('#combined_ageing_based_on').val();
 		const ageingRange = this.wrapper.find('#combined_ageing_range').val();
+		const costCenter = this.wrapper.find('#combined_cost_center').val();
+		
+		// Get customer and supplier values
+		let customerValue = null;
+		if (this.combined_customer_control) {
+			customerValue = this.combined_customer_control.get_value();
+			if (customerValue && !Array.isArray(customerValue)) {
+				customerValue = [customerValue];
+			}
+			if (customerValue && customerValue.length === 0) customerValue = null;
+		}
+		
+		let supplierValue = null;
+		if (this.combined_supplier_control) {
+			supplierValue = this.combined_supplier_control.get_value();
+			if (supplierValue && !Array.isArray(supplierValue)) {
+				supplierValue = [supplierValue];
+			}
+			if (supplierValue && supplierValue.length === 0) supplierValue = null;
+		}
 		
 		if (!company) {
 			frappe.msgprint(__('Please select a Company'));
@@ -1119,7 +1379,10 @@ class GeneralLedgerCustom {
 					company: company,
 					report_date: reportDate,
 					ageing_based_on: ageingBasedOn,
-					ageing_range: ageingRange
+					ageing_range: ageingRange,
+					cost_center: costCenter,
+					customer: customerValue,
+					supplier: supplierValue
 				}
 			},
 			callback: function(r) {
@@ -1149,53 +1412,39 @@ class GeneralLedgerCustom {
 		const receivables = data.receivables || {};
 		const payables = data.payables || {};
 		
+		const recColumns = receivables.columns || [];
+		const payColumns = payables.columns || [];
+		const recData = receivables.data || [];
+		const payData = payables.data || [];
+		
+		// Use receivables columns as base (both reports have similar structure)
+		const columns = recColumns.length > 0 ? recColumns : payColumns;
+		
+		if (!columns.length && !recData.length && !payData.length) {
+			this.wrapper.find('#combined_report_container').html(`
+				<div class="alert alert-info">
+					<strong>No Data</strong>: No receivables or payables data available for the selected filters.
+				</div>
+			`);
+			return;
+		}
+		
 		let html = `
 			<div class="report-mode-badge mode-combined">
 				<i class="fa fa-clock-o"></i> Combined Aging Analysis Mode
 			</div>
 		`;
 		
-		// Receivables Section
-		html += this.render_aging_section('Accounts Receivable (Customer)', receivables, 'success');
-		
-		// Payables Section  
-		html += this.render_aging_section('Accounts Payable (Supplier)', payables, 'warning');
-		
-		// Summary Section
+		// Summary cards at top
 		html += this.render_combined_summary(receivables, payables);
 		
-		this.wrapper.find('#combined_report_container').html(html);
-	}
-	
-	render_aging_section(title, reportData, colorClass) {
-		const columns = reportData.columns || [];
-		const data = reportData.data || [];
-		const summary = reportData.report_summary || [];
+		// Build unified table
+		html += '<div class="table-responsive" style="margin-top: 20px;">';
+		html += '<table class="table table-bordered table-hover" style="font-size: 12px;">';
 		
-		if (!columns.length) {
-			return `
-				<div class="alert alert-info" style="margin-bottom: 20px;">
-					<strong>${title}</strong>: No data available
-				</div>
-			`;
-		}
-		
-		let html = `
-			<div class="card" style="margin-bottom: 20px; border-left: 4px solid var(--${colorClass === 'success' ? 'green' : 'yellow'}-500, #28a745);">
-				<div class="card-header" style="background: ${colorClass === 'success' ? '#d4edda' : '#fff3cd'}; padding: 12px 20px;">
-					<h6 style="margin: 0; font-weight: 600;">
-						<i class="fa fa-${colorClass === 'success' ? 'arrow-down' : 'arrow-up'}"></i> ${title}
-						<span class="badge badge-${colorClass}" style="margin-left: 10px;">${data.length} entries</span>
-					</h6>
-				</div>
-				<div class="card-body" style="padding: 0; overflow-x: auto;">
-		`;
-		
-		// Build table
-		html += '<table class="table table-bordered table-hover" style="margin-bottom: 0; font-size: 12px;">';
-		
-		// Header
+		// Header - add Type column first
 		html += '<thead><tr>';
+		html += '<th style="white-space: nowrap; background: #495057; color: white;">Type</th>';
 		columns.forEach(col => {
 			const isAgingCol = col.fieldname && col.fieldname.match(/range\d+|age_\d+/i);
 			const headerClass = isAgingCol ? 'aging-column' : '';
@@ -1203,12 +1452,15 @@ class GeneralLedgerCustom {
 		});
 		html += '</tr></thead>';
 		
-		// Body
+		// Body - combine both datasets
 		html += '<tbody>';
-		data.forEach(row => {
+		
+		// Add receivables rows
+		recData.forEach(row => {
 			if (typeof row !== 'object' || Array.isArray(row)) return;
 			
-			html += '<tr>';
+			html += '<tr class="receivable-row" style="background-color: #f0fff0;">';
+			html += '<td style="font-weight: 600; color: #28a745;"><i class="fa fa-arrow-down"></i> Receivable</td>';
 			columns.forEach(col => {
 				let value = row[col.fieldname] || '';
 				const isAgingCol = col.fieldname && col.fieldname.match(/range\d+|age_\d+/i);
@@ -1223,65 +1475,77 @@ class GeneralLedgerCustom {
 			});
 			html += '</tr>';
 		});
+		
+		// Add payables rows
+		payData.forEach(row => {
+			if (typeof row !== 'object' || Array.isArray(row)) return;
+			
+			html += '<tr class="payable-row" style="background-color: #fffbf0;">';
+			html += '<td style="font-weight: 600; color: #ffc107;"><i class="fa fa-arrow-up"></i> Payable</td>';
+			columns.forEach(col => {
+				let value = row[col.fieldname] || '';
+				const isAgingCol = col.fieldname && col.fieldname.match(/range\d+|age_\d+/i);
+				let cellClass = isAgingCol ? 'aging-column-value' : '';
+				
+				// Format currency
+				if (col.fieldtype === 'Currency' && value) {
+					value = this.format_currency(value);
+				}
+				
+				html += `<td class="${cellClass}">${value}</td>`;
+			});
+			html += '</tr>';
+		});
+		
 		html += '</tbody>';
-		html += '</table>';
+		html += '</table></div>';
 		
-		html += '</div></div>';
+		// Entry count summary
+		html += `<div class="alert alert-success" style="margin-top: 20px;">
+			<strong>✅ Combined Aging Report Generated Successfully</strong><br>
+			<span class="badge badge-success">${recData.length} Receivables</span>
+			<span class="badge badge-warning">${payData.length} Payables</span>
+			<span class="badge badge-info">${recData.length + payData.length} Total Entries</span>
+		</div>`;
 		
-		return html;
+		this.wrapper.find('#combined_report_container').html(html);
 	}
 	
 	render_combined_summary(receivables, payables) {
-		const recSummary = receivables.report_summary || [];
-		const paySummary = payables.report_summary || [];
-		
-		// Extract totals
-		let recTotal = 0, payTotal = 0;
-		recSummary.forEach(s => {
-			if (s.label && s.label.toLowerCase().includes('total outstanding')) {
-				recTotal = parseFloat(s.value) || 0;
-			}
-		});
-		paySummary.forEach(s => {
-			if (s.label && s.label.toLowerCase().includes('total outstanding')) {
-				payTotal = parseFloat(s.value) || 0;
-			}
-		});
+		// Use totals calculated by backend
+		const recTotal = parseFloat(receivables.total) || 0;
+		const payTotal = parseFloat(payables.total) || 0;
 		
 		const netPosition = recTotal - payTotal;
 		const netClass = netPosition >= 0 ? 'success' : 'danger';
 		const netLabel = netPosition >= 0 ? 'Net Receivable' : 'Net Payable';
 		
 		return `
-			<div class="row" style="margin-top: 20px;">
+			<div class="row" style="margin-top: 10px; margin-bottom: 10px;">
 				<div class="col-md-4">
 					<div class="card text-white bg-success">
-						<div class="card-body text-center">
-							<h6 class="card-title">Total Receivables</h6>
-							<h4>${this.format_currency(recTotal)}</h4>
+						<div class="card-body text-center" style="padding: 15px;">
+							<h6 class="card-title" style="margin-bottom: 5px;">Total Receivables</h6>
+							<h4 style="margin: 0;">${this.format_currency(recTotal)}</h4>
 						</div>
 					</div>
 				</div>
 				<div class="col-md-4">
 					<div class="card text-white bg-warning">
-						<div class="card-body text-center">
-							<h6 class="card-title">Total Payables</h6>
-							<h4>${this.format_currency(payTotal)}</h4>
+						<div class="card-body text-center" style="padding: 15px;">
+							<h6 class="card-title" style="margin-bottom: 5px;">Total Payables</h6>
+							<h4 style="margin: 0;">${this.format_currency(payTotal)}</h4>
 						</div>
 					</div>
 				</div>
 				<div class="col-md-4">
 					<div class="card text-white bg-${netClass}">
-						<div class="card-body text-center">
-							<h6 class="card-title">${netLabel}</h6>
-							<h4>${this.format_currency(Math.abs(netPosition))}</h4>
+						<div class="card-body text-center" style="padding: 15px;">
+							<h6 class="card-title" style="margin-bottom: 5px;">${netLabel}</h6>
+							<h4 style="margin: 0;">${this.format_currency(Math.abs(netPosition))}</h4>
 						</div>
 					</div>
 				</div>
-			</div>
-			
-			<div class="alert alert-success" style="margin-top: 20px;">
-				<strong>✅ Combined Aging Report Generated Successfully</strong>
 			</div>
 		`;
 	}
