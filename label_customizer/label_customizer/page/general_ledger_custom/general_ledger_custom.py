@@ -257,6 +257,87 @@ def get_standard_gl_report(filters):
 
 
 @frappe.whitelist()
+def get_combined_aging_report(filters):
+    """
+    Get combined aging report showing both Receivables and Payables
+    """
+    # Parse filters if string
+    if isinstance(filters, str):
+        filters = json.loads(filters)
+    
+    # Validate permissions
+    if not frappe.has_permission('GL Entry', 'read'):
+        frappe.throw(_("Insufficient Permission"), frappe.PermissionError)
+    
+    try:
+        from erpnext.accounts.report.accounts_receivable.accounts_receivable import execute as execute_receivable
+        from erpnext.accounts.report.accounts_payable.accounts_payable import execute as execute_payable
+        
+        company = filters.get('company')
+        report_date = filters.get('report_date')
+        ageing_based_on = filters.get('ageing_based_on', 'Due Date')
+        ageing_range = filters.get('ageing_range', '30, 60, 90, 120')
+        
+        # Build common filter dict
+        base_filters = frappe._dict({
+            'company': company,
+            'report_date': report_date,
+            'ageing_based_on': ageing_based_on,
+            'range': ageing_range,
+        })
+        
+        # Get Receivables (Customer)
+        receivable_filters = frappe._dict(base_filters.copy())
+        receivable_filters['party_type'] = 'Customer'
+        receivable_filters['account_type'] = 'Receivable'
+        
+        try:
+            rec_columns, rec_data, rec_message, rec_chart, rec_summary, rec_skip = execute_receivable(receivable_filters)
+        except Exception as e:
+            rec_columns, rec_data, rec_summary = [], [], []
+            frappe.log_error(str(e), "Combined Aging - Receivables Error")
+        
+        # Get Payables (Supplier)
+        payable_filters = frappe._dict(base_filters.copy())
+        payable_filters['party_type'] = 'Supplier'
+        payable_filters['account_type'] = 'Payable'
+        
+        try:
+            pay_columns, pay_data, pay_message, pay_chart, pay_summary, pay_skip = execute_payable(payable_filters)
+        except Exception as e:
+            pay_columns, pay_data, pay_summary = [], [], []
+            frappe.log_error(str(e), "Combined Aging - Payables Error")
+        
+        return {
+            'receivables': {
+                'columns': rec_columns,
+                'data': rec_data,
+                'report_summary': rec_summary if 'rec_summary' in dir() else []
+            },
+            'payables': {
+                'columns': pay_columns,
+                'data': pay_data,
+                'report_summary': pay_summary if 'pay_summary' in dir() else []
+            },
+            'message': _('Combined aging report generated successfully'),
+            'report_mode': 'combined'
+        }
+        
+    except Exception as e:
+        error_message = str(e)
+        traceback_str = frappe.get_traceback()
+        frappe.log_error(traceback_str, _("Combined Aging Report Error"))
+        
+        return {
+            'receivables': {'columns': [], 'data': [], 'report_summary': []},
+            'payables': {'columns': [], 'data': [], 'report_summary': []},
+            'error': True,
+            'message': error_message,
+            'traceback': traceback_str if frappe.conf.developer_mode else None
+        }
+
+
+@frappe.whitelist()
 def export_to_excel(filters):
     """
     Export General Ledger data to Excel
@@ -301,5 +382,3 @@ def export_to_excel(filters):
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), _("General Ledger Export Error"))
         frappe.throw(_("Error exporting report: {0}").format(str(e)))
-
-

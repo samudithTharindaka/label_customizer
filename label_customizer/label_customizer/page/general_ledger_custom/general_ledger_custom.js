@@ -57,6 +57,19 @@ frappe.pages['general-ledger-custom'].on_page_load = function(wrapper) {
 			font-weight: 500;
 			text-align: right;
 		}
+		.party-multiselect {
+			min-height: 80px;
+			max-height: 150px;
+		}
+		.party-multiselect option:checked {
+			background: linear-gradient(0deg, #007bff 0%, #007bff 100%);
+			color: white;
+		}
+		#custom_party_container small {
+			display: block;
+			margin-top: 4px;
+			font-size: 11px;
+		}
 		#report_container tbody tr.table-info {
 			background-color: #e3f2fd !important;
 			font-weight: 600;
@@ -95,6 +108,42 @@ frappe.pages['general-ledger-custom'].on_page_load = function(wrapper) {
 			background-color: #fff3cd;
 			color: #856404;
 		}
+		.mode-combined {
+			background-color: #d4edda;
+			color: #155724;
+		}
+		.nav-tabs-custom {
+			border-bottom: 2px solid #dee2e6;
+			margin-bottom: 20px;
+		}
+		.nav-tabs-custom .nav-link {
+			border: none;
+			border-bottom: 3px solid transparent;
+			padding: 12px 24px;
+			font-weight: 600;
+			color: #6c757d;
+			cursor: pointer;
+			background: none;
+		}
+		.nav-tabs-custom .nav-link:hover {
+			color: #495057;
+			border-bottom-color: #dee2e6;
+		}
+		.nav-tabs-custom .nav-link.active {
+			color: #007bff;
+			border-bottom-color: #007bff;
+			background: none;
+		}
+		.tab-content-custom {
+			display: none;
+		}
+		.tab-content-custom.active {
+			display: block;
+		}
+		.combined-section {
+			background: linear-gradient(135deg, #e8f5e9 0%, #fff3e0 100%);
+			border: 1px solid #c8e6c9;
+		}
 	`;
 	document.head.appendChild(style);
 
@@ -121,6 +170,23 @@ class GeneralLedgerCustom {
             <p class="text-muted" style="margin-top: 5px;">Enhanced General Ledger report with custom filters and features</p>
         </div>
     </div>
+    
+    <!-- Tab Navigation -->
+    <ul class="nav nav-tabs nav-tabs-custom" id="reportTabs">
+        <li class="nav-item">
+            <a class="nav-link active" id="gl-tab" data-tab="gl">
+                <i class="fa fa-book"></i> General Ledger
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="combined-tab" data-tab="combined">
+                <i class="fa fa-clock-o"></i> Combined Aging
+            </a>
+        </li>
+    </ul>
+    
+    <!-- Tab 1: General Ledger -->
+    <div class="tab-content-custom active" id="gl-content">
     
     <!-- Custom Filter Section -->
     <div class="custom-filter-section" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
@@ -324,6 +390,71 @@ class GeneralLedgerCustom {
             <p style="margin-top: 20px; font-size: 16px;">Select filters and click "Apply Filters" to view the report</p>
         </div>
     </div>
+    
+    </div><!-- End Tab 1: GL Content -->
+    
+    <!-- Tab 2: Combined Aging -->
+    <div class="tab-content-custom" id="combined-content">
+        <div class="custom-filter-section combined-section" style="padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h5 style="margin-bottom: 15px;">📊 Combined Aging Report</h5>
+            <p class="text-muted">View both Receivables and Payables aging in a single report</p>
+            
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label class="control-label">Company *</label>
+                        <select class="form-control" id="combined_company">
+                            <option value="">Select Company</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label class="control-label">As of Date *</label>
+                        <input type="date" class="form-control" id="combined_report_date">
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label class="control-label">Ageing Based On</label>
+                        <select class="form-control" id="combined_ageing_based_on">
+                            <option value="Due Date">Due Date</option>
+                            <option value="Posting Date">Posting Date</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label class="control-label">Ageing Range (days)</label>
+                        <input type="text" class="form-control" id="combined_ageing_range" value="30, 60, 90, 120">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-12">
+                    <button class="btn btn-success btn-sm" id="btn_combined_report">
+                        <i class="fa fa-clock-o"></i> Generate Combined Aging Report
+                    </button>
+                    <button class="btn btn-default btn-sm" id="btn_combined_reset">
+                        <i class="fa fa-refresh"></i> Reset
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Combined Report Container -->
+        <div id="combined_report_container" style="min-height: 400px;">
+            <div class="text-center text-muted" style="padding: 60px 20px;">
+                <i class="fa fa-clock-o" style="font-size: 48px; opacity: 0.3;"></i>
+                <p style="margin-top: 20px; font-size: 16px;">Click "Generate Combined Aging Report" to view both Receivables and Payables aging</p>
+            </div>
+        </div>
+    </div><!-- End Tab 2: Combined Content -->
+    
 </div>
 		`;
 		$(this.page.body).html(html);
@@ -337,6 +468,61 @@ class GeneralLedgerCustom {
 		
 		// Bind events
 		this.bind_events();
+		
+		// Setup tabs
+		this.setup_tabs();
+	}
+
+	setup_tabs() {
+		const me = this;
+		
+		// Tab click handlers
+		this.wrapper.find('.nav-tabs-custom .nav-link').on('click', function(e) {
+			e.preventDefault();
+			const tabId = $(this).data('tab');
+			
+			// Update tab states
+			me.wrapper.find('.nav-tabs-custom .nav-link').removeClass('active');
+			$(this).addClass('active');
+			
+			// Update content visibility
+			me.wrapper.find('.tab-content-custom').removeClass('active');
+			me.wrapper.find(`#${tabId}-content`).addClass('active');
+		});
+		
+		// Load companies for combined tab
+		this.load_combined_companies();
+		this.set_combined_default_date();
+	}
+	
+	load_combined_companies() {
+		const me = this;
+		frappe.call({
+			method: 'frappe.client.get_list',
+			args: {
+				doctype: 'Company',
+				fields: ['name'],
+				limit_page_length: 0
+			},
+			async: false,
+			callback: function(r) {
+				if (r.message) {
+					const select = me.wrapper.find('#combined_company');
+					r.message.forEach(function(company) {
+						select.append(`<option value="${company.name}">${company.name}</option>`);
+					});
+					// Set default company
+					if (r.message.length > 0) {
+						select.val(r.message[0].name);
+					}
+				}
+			}
+		});
+	}
+	
+	set_combined_default_date() {
+		const today = frappe.datetime.get_today();
+		this.wrapper.find('#combined_report_date').val(today);
 	}
 
 	bind_events() {
@@ -371,6 +557,16 @@ class GeneralLedgerCustom {
 		this.wrapper.find('#custom_party_type').on('change', function() {
 			me.init_party_field();
 		});
+		
+		// Combined aging report button
+		this.wrapper.find('#btn_combined_report').on('click', function() {
+			me.load_combined_aging_report();
+		});
+		
+		// Combined reset button
+		this.wrapper.find('#btn_combined_reset').on('click', function() {
+			me.reset_combined_filters();
+		});
 	}
 	
 	init_party_field() {
@@ -388,9 +584,12 @@ class GeneralLedgerCustom {
 			return;
 		}
 		
-		// Create select dropdown
-		const select = $('<select class="form-control" id="custom_party"><option value="">Select ' + partyType + '</option></select>');
+		// Create multi-select dropdown with multiple attribute
+		const select = $('<select class="form-control party-multiselect" id="custom_party" multiple></select>');
 		container.append(select);
+		
+		// Add helpful text
+		container.append('<small class="text-muted">Hold Ctrl/Cmd to select multiple</small>');
 		
 		// Load parties for this party type
 		frappe.call({
@@ -522,6 +721,17 @@ class GeneralLedgerCustom {
 	}
 
 	get_filters() {
+		// Get party values - could be array from multi-select
+		let partyValue = this.party_field ? this.party_field.val() : this.wrapper.find('#custom_party').val();
+		// Ensure it's an array, filter empty values
+		if (partyValue) {
+			if (!Array.isArray(partyValue)) {
+				partyValue = [partyValue];
+			}
+			partyValue = partyValue.filter(v => v && v.trim());
+			if (partyValue.length === 0) partyValue = null;
+		}
+		
 		return {
 			company: this.wrapper.find('#custom_company').val(),
 			from_date: this.wrapper.find('#custom_from_date').val(),
@@ -532,7 +742,7 @@ class GeneralLedgerCustom {
 			cost_center: this.wrapper.find('#custom_cost_center').val(),
 			voucher_type: this.wrapper.find('#custom_voucher_type').val(),
 			party_type: this.wrapper.find('#custom_party_type').val(),
-			party: this.party_field ? this.party_field.val() : this.wrapper.find('#custom_party').val(),
+			party: partyValue,
 			group_by: this.wrapper.find('#custom_group_by').val(),
 			include_dimensions: this.wrapper.find('#custom_include_dimensions').val(),
 			show_opening_entries: this.wrapper.find('#custom_show_opening').val(),
@@ -860,6 +1070,220 @@ class GeneralLedgerCustom {
 		}
 		
 		frappe.msgprint(__('Export functionality will be implemented soon'));
+	}
+	
+	reset_combined_filters() {
+		this.wrapper.find('#combined_company').val(this.wrapper.find('#combined_company option:first').next().val());
+		this.wrapper.find('#combined_ageing_based_on').val('Due Date');
+		this.wrapper.find('#combined_ageing_range').val('30, 60, 90, 120');
+		this.set_combined_default_date();
+		
+		this.wrapper.find('#combined_report_container').html(`
+			<div class="text-center text-muted" style="padding: 60px 20px;">
+				<i class="fa fa-clock-o" style="font-size: 48px; opacity: 0.3;"></i>
+				<p style="margin-top: 20px; font-size: 16px;">Click "Generate Combined Aging Report" to view both Receivables and Payables aging</p>
+			</div>
+		`);
+	}
+	
+	load_combined_aging_report() {
+		const me = this;
+		
+		const company = this.wrapper.find('#combined_company').val();
+		const reportDate = this.wrapper.find('#combined_report_date').val();
+		const ageingBasedOn = this.wrapper.find('#combined_ageing_based_on').val();
+		const ageingRange = this.wrapper.find('#combined_ageing_range').val();
+		
+		if (!company) {
+			frappe.msgprint(__('Please select a Company'));
+			return;
+		}
+		
+		if (!reportDate) {
+			frappe.msgprint(__('Please select a Report Date'));
+			return;
+		}
+		
+		// Show loading
+		this.wrapper.find('#combined_report_container').html(`
+			<div class="text-center" style="padding: 60px 20px;">
+				<i class="fa fa-spinner fa-spin" style="font-size: 48px; color: #5e64ff;"></i>
+				<p style="margin-top: 20px; font-size: 16px;">Loading Combined Aging Report...</p>
+			</div>
+		`);
+		
+		frappe.call({
+			method: 'label_customizer.label_customizer.page.general_ledger_custom.general_ledger_custom.get_combined_aging_report',
+			args: {
+				filters: {
+					company: company,
+					report_date: reportDate,
+					ageing_based_on: ageingBasedOn,
+					ageing_range: ageingRange
+				}
+			},
+			callback: function(r) {
+				if (r.message) {
+					me.render_combined_report(r.message);
+				} else {
+					me.wrapper.find('#combined_report_container').html(`
+						<div class="text-center text-danger" style="padding: 60px 20px;">
+							<i class="fa fa-exclamation-triangle" style="font-size: 48px;"></i>
+							<p style="margin-top: 20px; font-size: 16px;">No data returned</p>
+						</div>
+					`);
+				}
+			},
+			error: function(r) {
+				me.wrapper.find('#combined_report_container').html(`
+					<div class="text-center text-danger" style="padding: 60px 20px;">
+						<i class="fa fa-exclamation-triangle" style="font-size: 48px;"></i>
+						<p style="margin-top: 20px; font-size: 16px;">Error loading report</p>
+					</div>
+				`);
+			}
+		});
+	}
+	
+	render_combined_report(data) {
+		const receivables = data.receivables || {};
+		const payables = data.payables || {};
+		
+		let html = `
+			<div class="report-mode-badge mode-combined">
+				<i class="fa fa-clock-o"></i> Combined Aging Analysis Mode
+			</div>
+		`;
+		
+		// Receivables Section
+		html += this.render_aging_section('Accounts Receivable (Customer)', receivables, 'success');
+		
+		// Payables Section  
+		html += this.render_aging_section('Accounts Payable (Supplier)', payables, 'warning');
+		
+		// Summary Section
+		html += this.render_combined_summary(receivables, payables);
+		
+		this.wrapper.find('#combined_report_container').html(html);
+	}
+	
+	render_aging_section(title, reportData, colorClass) {
+		const columns = reportData.columns || [];
+		const data = reportData.data || [];
+		const summary = reportData.report_summary || [];
+		
+		if (!columns.length) {
+			return `
+				<div class="alert alert-info" style="margin-bottom: 20px;">
+					<strong>${title}</strong>: No data available
+				</div>
+			`;
+		}
+		
+		let html = `
+			<div class="card" style="margin-bottom: 20px; border-left: 4px solid var(--${colorClass === 'success' ? 'green' : 'yellow'}-500, #28a745);">
+				<div class="card-header" style="background: ${colorClass === 'success' ? '#d4edda' : '#fff3cd'}; padding: 12px 20px;">
+					<h6 style="margin: 0; font-weight: 600;">
+						<i class="fa fa-${colorClass === 'success' ? 'arrow-down' : 'arrow-up'}"></i> ${title}
+						<span class="badge badge-${colorClass}" style="margin-left: 10px;">${data.length} entries</span>
+					</h6>
+				</div>
+				<div class="card-body" style="padding: 0; overflow-x: auto;">
+		`;
+		
+		// Build table
+		html += '<table class="table table-bordered table-hover" style="margin-bottom: 0; font-size: 12px;">';
+		
+		// Header
+		html += '<thead><tr>';
+		columns.forEach(col => {
+			const isAgingCol = col.fieldname && col.fieldname.match(/range\d+|age_\d+/i);
+			const headerClass = isAgingCol ? 'aging-column' : '';
+			html += `<th class="${headerClass}" style="white-space: nowrap;">${col.label || col.fieldname}</th>`;
+		});
+		html += '</tr></thead>';
+		
+		// Body
+		html += '<tbody>';
+		data.forEach(row => {
+			if (typeof row !== 'object' || Array.isArray(row)) return;
+			
+			html += '<tr>';
+			columns.forEach(col => {
+				let value = row[col.fieldname] || '';
+				const isAgingCol = col.fieldname && col.fieldname.match(/range\d+|age_\d+/i);
+				let cellClass = isAgingCol ? 'aging-column-value' : '';
+				
+				// Format currency
+				if (col.fieldtype === 'Currency' && value) {
+					value = this.format_currency(value);
+				}
+				
+				html += `<td class="${cellClass}">${value}</td>`;
+			});
+			html += '</tr>';
+		});
+		html += '</tbody>';
+		html += '</table>';
+		
+		html += '</div></div>';
+		
+		return html;
+	}
+	
+	render_combined_summary(receivables, payables) {
+		const recSummary = receivables.report_summary || [];
+		const paySummary = payables.report_summary || [];
+		
+		// Extract totals
+		let recTotal = 0, payTotal = 0;
+		recSummary.forEach(s => {
+			if (s.label && s.label.toLowerCase().includes('total outstanding')) {
+				recTotal = parseFloat(s.value) || 0;
+			}
+		});
+		paySummary.forEach(s => {
+			if (s.label && s.label.toLowerCase().includes('total outstanding')) {
+				payTotal = parseFloat(s.value) || 0;
+			}
+		});
+		
+		const netPosition = recTotal - payTotal;
+		const netClass = netPosition >= 0 ? 'success' : 'danger';
+		const netLabel = netPosition >= 0 ? 'Net Receivable' : 'Net Payable';
+		
+		return `
+			<div class="row" style="margin-top: 20px;">
+				<div class="col-md-4">
+					<div class="card text-white bg-success">
+						<div class="card-body text-center">
+							<h6 class="card-title">Total Receivables</h6>
+							<h4>${this.format_currency(recTotal)}</h4>
+						</div>
+					</div>
+				</div>
+				<div class="col-md-4">
+					<div class="card text-white bg-warning">
+						<div class="card-body text-center">
+							<h6 class="card-title">Total Payables</h6>
+							<h4>${this.format_currency(payTotal)}</h4>
+						</div>
+					</div>
+				</div>
+				<div class="col-md-4">
+					<div class="card text-white bg-${netClass}">
+						<div class="card-body text-center">
+							<h6 class="card-title">${netLabel}</h6>
+							<h4>${this.format_currency(Math.abs(netPosition))}</h4>
+						</div>
+					</div>
+				</div>
+			</div>
+			
+			<div class="alert alert-success" style="margin-top: 20px;">
+				<strong>✅ Combined Aging Report Generated Successfully</strong>
+			</div>
+		`;
 	}
 }
 
