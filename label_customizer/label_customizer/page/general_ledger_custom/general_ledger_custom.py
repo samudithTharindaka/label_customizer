@@ -189,9 +189,156 @@ def convert_to_json_array(value):
         return value
 
 
+def add_aging_columns_to_gl(columns, data, filters):
+    """
+    Add aging bucket columns to General Ledger data when aging filters are present
+    """
+    party_type = filters.get('party_type')
+    
+    # Fetch aging data
+    aging_data_map = get_aging_data_map(filters)
+    
+    if not aging_data_map:
+        return columns, data
+    
+    # Parse aging range to get bucket labels
+    ageing_range = filters.get('ageing_range', '30, 60, 90, 120')
+    ranges = [int(x.strip()) for x in ageing_range.split(',')]
+    
+    # Build aging column headers
+    aging_columns = []
+    previous = 0
+    for r in ranges:
+        aging_columns.append({
+            'label': f'{previous}-{r}',
+            'fieldname': f'age_{previous}_{r}',
+            'fieldtype': 'Currency',
+            'width': 100
+        })
+        previous = r
+    # Add 120+ column
+    aging_columns.append({
+        'label': f'{previous}+',
+        'fieldname': f'age_{previous}_plus',
+        'fieldtype': 'Currency',
+        'width': 100
+    })
+    
+    # Add aging columns after Balance column
+    balance_idx = None
+    for idx, col in enumerate(columns):
+        if col.get('fieldname') == 'balance':
+            balance_idx = idx
+            break
+    
+    if balance_idx is not None:
+        # Insert aging columns after balance
+        columns = columns[:balance_idx + 1] + aging_columns + columns[balance_idx + 1:]
+    else:
+        # Append at the end if balance column not found
+        columns.extend(aging_columns)
+    
+    # Enrich data rows with aging values
+    enriched_data = []
+    for row in data:
+        if isinstance(row, dict):
+            # Try to match this GL entry with aging data
+            voucher_no = row.get('voucher_no')
+            party = row.get('party')
+            
+            # Create a unique key for matching
+            match_key = f"{party}_{voucher_no}" if party and voucher_no else None
+            
+            if match_key and match_key in aging_data_map:
+                aging_values = aging_data_map[match_key]
+                # Add aging bucket values to the row
+                for col in aging_columns:
+                    row[col['fieldname']] = aging_values.get(col['fieldname'], 0)
+            else:
+                # No aging data for this row, set to None
+                for col in aging_columns:
+                    row[col['fieldname']] = None
+        
+        enriched_data.append(row)
+    
+    return columns, enriched_data
+
+
+def get_aging_data_map(filters):
+    """
+    Fetch aging data and create a mapping of voucher_no -> aging buckets
+    """
+    try:
+        party_type = filters.get('party_type')
+        
+        if party_type == 'Customer':
+            from erpnext.accounts.report.accounts_receivable.accounts_receivable import execute
+            account_type = 'Receivable'
+        elif party_type == 'Supplier':
+            from erpnext.accounts.report.accounts_payable.accounts_payable import execute
+            account_type = 'Payable'
+        else:
+            return {}
+        
+        # Build aging report filters
+        aging_filters = frappe._dict({
+            'company': filters.get('company'),
+            'report_date': filters.get('to_date'),  # Use to_date as report_date
+            'ageing_based_on': filters.get('ageing_based_on', 'Due Date'),
+            'range': filters.get('ageing_range', '30, 60, 90, 120'),
+            'party_type': party_type,
+            'account_type': account_type
+        })
+        
+        # Add optional filters
+        if filters.get('party'):
+            aging_filters['party'] = filters.get('party')
+        if filters.get('cost_center'):
+            aging_filters['cost_center'] = filters.get('cost_center')
+        
+        # Execute aging report
+        columns, data, message, chart, report_summary, skip_total_row = execute(aging_filters)
+        
+        # Parse aging range
+        ageing_range = filters.get('ageing_range', '30, 60, 90, 120')
+        ranges = [int(x.strip()) for x in ageing_range.split(',')]
+        
+        # Build mapping: party_voucher -> aging bucket values
+        aging_map = {}
+        
+        for row in data:
+            if isinstance(row, dict) and row.get('voucher_no'):
+                party = row.get('party')
+                voucher_no = row.get('voucher_no')
+                match_key = f"{party}_{voucher_no}"
+                
+                # Extract aging bucket values
+                aging_values = {}
+                previous = 0
+                col_idx = 0
+                for r in ranges:
+                    fieldname = f'age_{previous}_{r}'
+                    # Try common field patterns from AR/AP reports
+                    value = row.get(f'range{col_idx + 1}') or row.get(f'{previous}-{r}') or 0
+                    aging_values[fieldname] = value
+                    previous = r
+                    col_idx += 1
+                
+                # Add 120+ column
+                aging_values[f'age_{previous}_plus'] = row.get(f'range{col_idx + 1}') or row.get(f'{previous}+') or 0
+                
+                aging_map[match_key] = aging_values
+        
+        return aging_map
+        
+    except Exception as e:
+        frappe.log_error(str(e), "Get Aging Data Map Error")
+        return {}
+
+
 def get_standard_gl_report(filters):
     """
-    Get standard General Ledger report (existing logic preserved)
+    Get standard General Ledger report with optional aging columns
     """
     from erpnext.accounts.report.general_ledger.general_ledger import execute
     
@@ -246,13 +393,22 @@ def get_standard_gl_report(filters):
     # Execute the standard General Ledger report
     columns, data = execute(report_filters)
     
+    # Check if aging columns should be added
+    has_aging_filters = filters.get('ageing_based_on') or filters.get('ageing_range')
+    party_type = filters.get('party_type')
+    
+    if has_aging_filters and party_type in ['Customer', 'Supplier']:
+        # Enrich GL data with aging columns
+        columns, data = add_aging_columns_to_gl(columns, data, filters)
+    
     # Return formatted response
     return {
         'columns': columns,
         'data': data,
         'message': _('Report generated successfully'),
         'report_mode': 'standard',
-        'filters_applied': report_filters
+        'filters_applied': report_filters,
+        'has_aging_columns': has_aging_filters and party_type in ['Customer', 'Supplier']
     }
 
 

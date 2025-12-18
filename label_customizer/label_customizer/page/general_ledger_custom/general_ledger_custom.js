@@ -1134,6 +1134,10 @@ class GeneralLedgerCustom {
 			modeLabel = `<div class="report-mode-badge mode-aging">
 				<i class="fa fa-clock-o"></i> Aging Analysis Mode - Showing aging buckets
 			</div>`;
+		} else if (data.has_aging_columns) {
+			modeLabel = `<div class="report-mode-badge mode-standard">
+				<i class="fa fa-book"></i> General Ledger with Aging Columns
+			</div>`;
 		} else {
 			modeLabel = `<div class="report-mode-badge mode-standard">
 				<i class="fa fa-book"></i> Standard General Ledger Mode
@@ -1155,9 +1159,9 @@ class GeneralLedgerCustom {
 		// Table header
 		html += '<thead><tr>';
 		columns.forEach(col => {
-			// Detect and mark aging columns
+			// Detect and mark aging columns (match patterns like "0-30", "120+", "Above")
 			let headerClass = '';
-			if (col.label && col.label.match(/^\d+-\d+|^\d+-Above|Above/i)) {
+			if (col.label && col.label.match(/^\d+-\d+|^\d+\+|^\d+-Above|Above/i)) {
 				headerClass = 'aging-column';
 			}
 			html += `<th class="${headerClass}">${col.label}</th>`;
@@ -1197,15 +1201,20 @@ class GeneralLedgerCustom {
 						cellStyle = 'background-color: #e3f2fd; font-weight: 600;';
 					}
 					
-					// Mark aging column values
-					if (col.label && col.label.match(/^\d+-\d+|^\d+-Above|Above/i)) {
+					// Mark aging column values (match patterns like "0-30", "120+", "Above")
+					if (col.label && col.label.match(/^\d+-\d+|^\d+\+|^\d+-Above|Above/i)) {
 						cellClass += ' aging-column-value';
 					}
 					
 					// Format numbers
 					if (col.fieldtype === 'Currency' || col.fieldtype === 'Float') {
 						const numValue = parseFloat(value) || 0;
-						value = this.format_currency(numValue);
+						// For aging columns, show empty if null/zero, otherwise format
+						if (cellClass.includes('aging-column-value') && (value === null || value === '' || numValue === 0)) {
+							value = '';
+						} else {
+							value = this.format_currency(numValue);
+						}
 						
 						// Add color classes for debit/credit (only for data rows)
 						if (!isSummaryRow) {
