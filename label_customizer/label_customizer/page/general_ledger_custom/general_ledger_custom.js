@@ -216,7 +216,7 @@ class GeneralLedgerCustom {
             <div class="col-md-3">
                 <div class="form-group">
                     <label class="control-label">Party</label>
-                    <input type="text" class="form-control" id="custom_party" placeholder="Enter Party Name">
+                    <div id="custom_party_container"></div>
                 </div>
             </div>
             
@@ -332,6 +332,9 @@ class GeneralLedgerCustom {
 		this.load_companies();
 		this.set_default_dates();
 		
+		// Initialize party field
+		this.init_party_field();
+		
 		// Bind events
 		this.bind_events();
 	}
@@ -363,6 +366,52 @@ class GeneralLedgerCustom {
 				me.load_cost_centers(company);
 			}
 		});
+		
+		// Party type change event - refresh party field
+		this.wrapper.find('#custom_party_type').on('change', function() {
+			me.init_party_field();
+		});
+	}
+	
+	init_party_field() {
+		const me = this;
+		const partyType = this.wrapper.find('#custom_party_type').val();
+		const container = this.wrapper.find('#custom_party_container');
+		
+		// Clear existing field
+		container.empty();
+		
+		if (!partyType) {
+			// Show disabled select when no party type selected
+			container.html('<select class="form-control" id="custom_party" disabled><option value="">Select Party Type first</option></select>');
+			this.party_field = null;
+			return;
+		}
+		
+		// Create select dropdown
+		const select = $('<select class="form-control" id="custom_party"><option value="">Select ' + partyType + '</option></select>');
+		container.append(select);
+		
+		// Load parties for this party type
+		frappe.call({
+			method: 'frappe.client.get_list',
+			args: {
+				doctype: partyType,
+				fields: ['name'],
+				limit_page_length: 0,
+				order_by: 'name'
+			},
+			callback: function(r) {
+				if (r.message) {
+					r.message.forEach(function(party) {
+						select.append($('<option></option>').attr('value', party.name).text(party.name));
+					});
+				}
+			}
+		});
+		
+		// Store reference
+		this.party_field = select;
 	}
 
 	set_default_dates() {
@@ -483,7 +532,7 @@ class GeneralLedgerCustom {
 			cost_center: this.wrapper.find('#custom_cost_center').val(),
 			voucher_type: this.wrapper.find('#custom_voucher_type').val(),
 			party_type: this.wrapper.find('#custom_party_type').val(),
-			party: this.wrapper.find('#custom_party').val(),
+			party: this.party_field ? this.party_field.val() : this.wrapper.find('#custom_party').val(),
 			group_by: this.wrapper.find('#custom_group_by').val(),
 			include_dimensions: this.wrapper.find('#custom_include_dimensions').val(),
 			show_opening_entries: this.wrapper.find('#custom_show_opening').val(),
@@ -560,7 +609,7 @@ class GeneralLedgerCustom {
 
 	render_report(data) {
 		const columns = data.columns;
-		const rows = data.data;
+		let rows = data.data;
 		const reportMode = data.report_mode || 'standard';
 		
 		if (!rows || rows.length === 0) {
@@ -571,6 +620,9 @@ class GeneralLedgerCustom {
 			`);
 			return;
 		}
+		
+		// Remove duplicate rows (especially summary rows)
+		rows = this.remove_duplicate_rows(rows, columns);
 		
 		// Add mode indicator
 		let modeLabel = '';
@@ -584,8 +636,16 @@ class GeneralLedgerCustom {
 			</div>`;
 		}
 		
+		// Add aging note if present
+		let agingNote = '';
+		if (data.aging_note) {
+			agingNote = `<div class="alert alert-warning" style="margin-bottom: 15px;">
+				<i class="fa fa-info-circle"></i> ${data.aging_note}
+			</div>`;
+		}
+		
 		// Build table HTML
-		let html = modeLabel;
+		let html = modeLabel + agingNote;
 		html += '<div class="table-responsive"><table class="table table-bordered table-hover table-sm">';
 		
 		// Table header
@@ -683,6 +743,57 @@ class GeneralLedgerCustom {
 		this.wrapper.find('#report_container').html(html);
 	}
 	
+	remove_duplicate_rows(rows, columns) {
+		// Remove duplicate summary rows (Opening, Total, Closing)
+		const filteredRows = [];
+		const firstCol = columns[0];
+		const balanceCol = columns.find(c => c.fieldname && c.fieldname.toLowerCase().includes('balance'));
+		
+		rows.forEach((row, index) => {
+			if (typeof row === 'object' && !Array.isArray(row)) {
+				const firstValue = String(row[firstCol.fieldname] || '').trim();
+				const isSummaryRow = this.is_summary_row(row, columns);
+				
+				if (isSummaryRow && firstValue) {
+					// Check if previous row is the same summary row
+					const prevRow = filteredRows[filteredRows.length - 1];
+					
+					if (prevRow && typeof prevRow === 'object') {
+						const prevFirstValue = String(prevRow[firstCol.fieldname] || '').trim();
+						const prevIsSummaryRow = this.is_summary_row(prevRow, columns);
+						
+						// If previous row is same summary type, compare values
+						if (prevIsSummaryRow && prevFirstValue.toLowerCase() === firstValue.toLowerCase()) {
+							// Compare balance to see if truly duplicate
+							if (balanceCol) {
+								const currentBalance = parseFloat(row[balanceCol.fieldname] || 0);
+								const prevBalance = parseFloat(prevRow[balanceCol.fieldname] || 0);
+								
+								// If balances are the same (within 0.01), skip duplicate
+								if (Math.abs(currentBalance - prevBalance) < 0.01) {
+									return; // Skip this duplicate
+								}
+							} else {
+								// No balance column, skip if first value matches exactly
+								if (prevFirstValue === firstValue) {
+									return; // Skip duplicate
+								}
+							}
+						}
+					}
+				}
+				
+				// Include this row
+				filteredRows.push(row);
+			} else {
+				// Include non-object rows as-is
+				filteredRows.push(row);
+			}
+		});
+		
+		return filteredRows;
+	}
+	
 	is_empty_row(row, columns) {
 		// Check if all values in the row are empty or zero
 		for (let col of columns) {
@@ -722,7 +833,12 @@ class GeneralLedgerCustom {
 		this.wrapper.find('#custom_cost_center').val('');
 		this.wrapper.find('#custom_voucher_type').val('');
 		this.wrapper.find('#custom_party_type').val('');
-		this.wrapper.find('#custom_party').val('');
+		if (this.party_field) {
+			this.party_field.val('');
+		} else {
+			this.wrapper.find('#custom_party').val('');
+		}
+		this.init_party_field(); // Reinitialize to show placeholder
 		this.wrapper.find('#custom_group_by').val('');
 		this.wrapper.find('#custom_include_dimensions').val('0');
 		this.wrapper.find('#custom_show_opening').val('Yes');
