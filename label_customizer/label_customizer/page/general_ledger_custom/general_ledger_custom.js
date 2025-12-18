@@ -68,6 +68,33 @@ frappe.pages['general-ledger-custom'].on_page_load = function(wrapper) {
 			border-top: 2px solid #2196f3;
 			border-bottom: 2px solid #2196f3;
 		}
+		#report_container th.aging-column {
+			background-color: #fff3cd !important;
+			color: #856404;
+			font-weight: 700;
+			border-left: 2px solid #ffc107;
+		}
+		#report_container td.aging-column-value {
+			background-color: #fffbf0;
+			font-weight: 500;
+			text-align: right;
+		}
+		.report-mode-badge {
+			display: inline-block;
+			padding: 5px 12px;
+			border-radius: 4px;
+			font-size: 12px;
+			font-weight: 600;
+			margin-bottom: 15px;
+		}
+		.mode-standard {
+			background-color: #e3f2fd;
+			color: #1976d2;
+		}
+		.mode-aging {
+			background-color: #fff3cd;
+			color: #856404;
+		}
 	`;
 	document.head.appendChild(style);
 
@@ -534,6 +561,7 @@ class GeneralLedgerCustom {
 	render_report(data) {
 		const columns = data.columns;
 		const rows = data.data;
+		const reportMode = data.report_mode || 'standard';
 		
 		if (!rows || rows.length === 0) {
 			this.wrapper.find('#report_container').html(`
@@ -544,13 +572,31 @@ class GeneralLedgerCustom {
 			return;
 		}
 		
+		// Add mode indicator
+		let modeLabel = '';
+		if (reportMode === 'aging') {
+			modeLabel = `<div class="report-mode-badge mode-aging">
+				<i class="fa fa-clock-o"></i> Aging Analysis Mode - Showing aging buckets
+			</div>`;
+		} else {
+			modeLabel = `<div class="report-mode-badge mode-standard">
+				<i class="fa fa-book"></i> Standard General Ledger Mode
+			</div>`;
+		}
+		
 		// Build table HTML
-		let html = '<div class="table-responsive"><table class="table table-bordered table-hover table-sm">';
+		let html = modeLabel;
+		html += '<div class="table-responsive"><table class="table table-bordered table-hover table-sm">';
 		
 		// Table header
 		html += '<thead><tr>';
 		columns.forEach(col => {
-			html += `<th>${col.label}</th>`;
+			// Detect and mark aging columns
+			let headerClass = '';
+			if (col.label && col.label.match(/^\d+-\d+|^\d+-Above|Above/i)) {
+				headerClass = 'aging-column';
+			}
+			html += `<th class="${headerClass}">${col.label}</th>`;
 		});
 		html += '</tr></thead>';
 		
@@ -579,12 +625,17 @@ class GeneralLedgerCustom {
 					let cellClass = '';
 					let cellStyle = '';
 					
-					// For summary rows, check if first column contains the label
+					// For summary rows
 					if (isSummaryRow && idx === 0) {
 						cellClass = 'font-weight-bold';
 						cellStyle = 'background-color: #e3f2fd; font-weight: 600;';
 					} else if (isSummaryRow) {
 						cellStyle = 'background-color: #e3f2fd; font-weight: 600;';
+					}
+					
+					// Mark aging column values
+					if (col.label && col.label.match(/^\d+-\d+|^\d+-Above|Above/i)) {
+						cellClass += ' aging-column-value';
 					}
 					
 					// Format numbers
@@ -622,8 +673,10 @@ class GeneralLedgerCustom {
 		html += '</table></div>';
 		
 		// Add summary
+		let summaryBadge = reportMode === 'aging' ? 'badge-warning' : 'badge-success';
 		html += `<div class="alert alert-success" style="margin-top: 20px;">
 			<strong>✅ Report Generated Successfully</strong><br>
+			<span class="badge ${summaryBadge}">${reportMode === 'aging' ? 'Aging Mode' : 'Standard Mode'}</span>
 			Data Entries: ${dataRowCount}
 		</div>`;
 		
