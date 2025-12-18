@@ -159,7 +159,8 @@ def get_aged_receivable_payable_report(filters):
         report_filters['calculate_ageing_with'] = filters.get('calculate_ageing_with')
     
     # Execute AR/AP report
-    columns, data = execute(report_filters)
+    # Returns: columns, data, message, chart, report_summary, skip_total_row
+    columns, data, message, chart, report_summary, skip_total_row = execute(report_filters)
     
     return {
         'columns': columns,

@@ -745,8 +745,11 @@ class GeneralLedgerCustom {
 	
 	remove_duplicate_rows(rows, columns) {
 		// Remove duplicate summary rows (Opening, Total, Closing)
+		const seenSummaries = new Map(); // Track all summary rows by type and values
 		const filteredRows = [];
 		const firstCol = columns[0];
+		const debitCol = columns.find(c => c.fieldname && c.fieldname.toLowerCase() === 'debit');
+		const creditCol = columns.find(c => c.fieldname && c.fieldname.toLowerCase() === 'credit');
 		const balanceCol = columns.find(c => c.fieldname && c.fieldname.toLowerCase().includes('balance'));
 		
 		rows.forEach((row, index) => {
@@ -755,36 +758,27 @@ class GeneralLedgerCustom {
 				const isSummaryRow = this.is_summary_row(row, columns);
 				
 				if (isSummaryRow && firstValue) {
-					// Check if previous row is the same summary row
-					const prevRow = filteredRows[filteredRows.length - 1];
+					// Create a unique key based on summary type and key values
+					const summaryType = firstValue.toLowerCase().replace(/'/g, '');
+					const debit = parseFloat(row[debitCol ? debitCol.fieldname : ''] || 0).toFixed(2);
+					const credit = parseFloat(row[creditCol ? creditCol.fieldname : ''] || 0).toFixed(2);
+					const balance = parseFloat(row[balanceCol ? balanceCol.fieldname : ''] || 0).toFixed(2);
 					
-					if (prevRow && typeof prevRow === 'object') {
-						const prevFirstValue = String(prevRow[firstCol.fieldname] || '').trim();
-						const prevIsSummaryRow = this.is_summary_row(prevRow, columns);
-						
-						// If previous row is same summary type, compare values
-						if (prevIsSummaryRow && prevFirstValue.toLowerCase() === firstValue.toLowerCase()) {
-							// Compare balance to see if truly duplicate
-							if (balanceCol) {
-								const currentBalance = parseFloat(row[balanceCol.fieldname] || 0);
-								const prevBalance = parseFloat(prevRow[balanceCol.fieldname] || 0);
-								
-								// If balances are the same (within 0.01), skip duplicate
-								if (Math.abs(currentBalance - prevBalance) < 0.01) {
-									return; // Skip this duplicate
-								}
-							} else {
-								// No balance column, skip if first value matches exactly
-								if (prevFirstValue === firstValue) {
-									return; // Skip duplicate
-								}
-							}
-						}
+					// Key combines type and values
+					const key = `${summaryType}|${debit}|${credit}|${balance}`;
+					
+					// Check if we've seen this exact summary before
+					if (seenSummaries.has(key)) {
+						return; // Skip this duplicate
 					}
+					
+					// Mark as seen and include
+					seenSummaries.set(key, true);
+					filteredRows.push(row);
+				} else {
+					// Always include non-summary rows
+					filteredRows.push(row);
 				}
-				
-				// Include this row
-				filteredRows.push(row);
 			} else {
 				// Include non-object rows as-is
 				filteredRows.push(row);
