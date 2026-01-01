@@ -103,6 +103,111 @@ def should_use_aging_mode(filters):
     return True
 
 
+def rename_ar_ap_columns_to_gl_style(columns, party_type):
+    """
+    Rename and reorder Accounts Receivable/Payable columns to match General Ledger format
+    This provides a consistent GL viewing experience for aging analysis
+    
+    Args:
+        columns: List of column dictionaries from AR/AP report
+        party_type: 'Customer' or 'Supplier'
+    
+    Returns:
+        Modified columns list with renamed labels and GL-style ordering
+    """
+    if not columns or not party_type:
+        return columns
+    
+    # Define field label mappings for General Ledger terminology
+    if party_type == 'Customer':
+        # For Receivables: Invoiced = Debit (increases receivable), Paid = Credit (decreases receivable)
+        label_mappings = {
+            'Invoiced Amount': 'Debit',
+            'Paid Amount': 'Credit',
+            'Outstanding Amount': 'Balance',
+            'Credit Note': 'Credit',
+            'Outstanding': 'Balance'
+        }
+    else:  # Supplier
+        # For Payables: Invoiced = Credit (increases payable), Paid = Debit (decreases payable)
+        label_mappings = {
+            'Invoiced Amount': 'Credit',
+            'Paid Amount': 'Debit',
+            'Outstanding Amount': 'Balance',
+            'Debit Note': 'Debit',
+            'Outstanding': 'Balance'
+        }
+    
+    # First pass: Apply label mappings and create a dictionary for easy lookup
+    columns_dict = {}
+    aging_columns = []
+    
+    for col in columns:
+        if isinstance(col, dict):
+            col_copy = col.copy()
+            original_label = col_copy.get('label', '')
+            fieldname = col_copy.get('fieldname', '')
+            
+            # Check if this label should be renamed
+            if original_label in label_mappings:
+                col_copy['label'] = label_mappings[original_label]
+                col_copy['original_label'] = original_label
+            
+            # Identify aging bucket columns (range1, range2, etc. or labels like "0-30", "31-60")
+            is_aging_bucket = (
+                fieldname.startswith('range') or 
+                (original_label and any(char.isdigit() for char in original_label) and '-' in original_label) or
+                original_label.endswith('+') or
+                'Above' in original_label
+            )
+            
+            if is_aging_bucket:
+                aging_columns.append(col_copy)
+            else:
+                columns_dict[fieldname] = col_copy
+        else:
+            # Keep non-dict columns as-is
+            columns_dict[str(col)] = col
+    
+    # Define General Ledger column order
+    # Standard GL order: Date, Account, Debit, Credit, Balance, Voucher info, Party, then aging
+    gl_column_order = [
+        'posting_date',      # Date
+        'party',             # Party (Customer/Supplier)
+        'voucher_type',      # Voucher Type
+        'voucher_no',        # Voucher No
+        'invoiced',          # Debit (for Customer) / Credit (for Supplier)
+        'paid',              # Credit (for Customer) / Debit (for Supplier)
+        'outstanding',       # Balance
+        'due_date',          # Due Date
+        'age',               # Age (days)
+        'account',           # Account
+        'cost_center',       # Cost Center
+        'remarks',           # Remarks
+        'currency',          # Currency
+    ]
+    
+    # Build reordered columns list
+    reordered_columns = []
+    
+    # Add columns in GL order
+    for fieldname in gl_column_order:
+        if fieldname in columns_dict:
+            reordered_columns.append(columns_dict[fieldname])
+            # Remove from dict so we don't add it twice
+            del columns_dict[fieldname]
+    
+    # Add any remaining columns that weren't in our predefined order
+    for fieldname, col in columns_dict.items():
+        if isinstance(col, dict) and fieldname not in gl_column_order:
+            reordered_columns.append(col)
+    
+    # Add aging bucket columns at the end
+    reordered_columns.extend(aging_columns)
+    
+    return reordered_columns
+
+
 def get_aged_receivable_payable_report(filters):
     """
     Get report with aging columns for receivable/payable accounts
@@ -161,6 +266,9 @@ def get_aged_receivable_payable_report(filters):
     # Execute AR/AP report
     # Returns: columns, data, message, chart, report_summary, skip_total_row
     columns, data, message, chart, report_summary, skip_total_row = execute(report_filters)
+    
+    # Rename AR/AP column labels to General Ledger terminology
+    columns = rename_ar_ap_columns_to_gl_style(columns, party_type)
     
     return {
         'columns': columns,
@@ -470,6 +578,9 @@ def get_combined_aging_report(filters):
             rec_data = result[1] if len(result) > 1 else []
             rec_summary = result[4] if len(result) > 4 else []
             
+            # Rename AR column labels to General Ledger terminology
+            rec_columns = rename_ar_ap_columns_to_gl_style(rec_columns, 'Customer')
+            
             # Calculate total from data (outstanding_amount field)
             for row in rec_data:
                 if isinstance(row, dict) and row.get('outstanding'):
@@ -494,6 +605,9 @@ def get_combined_aging_report(filters):
             pay_columns = result[0] if len(result) > 0 else []
             pay_data = result[1] if len(result) > 1 else []
             pay_summary = result[4] if len(result) > 4 else []
+            
+            # Rename AP column labels to General Ledger terminology
+            pay_columns = rename_ar_ap_columns_to_gl_style(pay_columns, 'Supplier')
             
             # Calculate total from data (outstanding_amount field)
             for row in pay_data:
