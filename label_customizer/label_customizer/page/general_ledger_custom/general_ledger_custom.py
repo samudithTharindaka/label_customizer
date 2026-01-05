@@ -9,7 +9,10 @@ import json
 @frappe.whitelist()
 def get_report_data(filters):
     """
-    Get General Ledger data with custom filters and optional aging support
+    Get General Ledger data with custom filters and optional aging support.
+    Always returns standard GL data in the main response.
+    If show_aging is enabled and party type is Customer/Supplier, 
+    aging data is returned separately in 'aging_data' key.
     """
     # Parse filters if string
     if isinstance(filters, str):
@@ -20,26 +23,31 @@ def get_report_data(filters):
         frappe.throw(_("Insufficient Permission"), frappe.PermissionError)
     
     try:
-        # Detect if aging mode should be activated
-        use_aging_mode = should_use_aging_mode(filters)
+        # Always get standard GL report first
+        result = get_standard_gl_report(filters)
         
-        if use_aging_mode:
-            # Use aging report
-            return get_aged_receivable_payable_report(filters)
-        else:
-            # Use standard GL report (no changes to this path)
-            result = get_standard_gl_report(filters)
-            
-            # Add helpful message if aging filters are set but aging mode didn't activate
-            if filters.get('ageing_based_on') or filters.get('ageing_range'):
-                if not filters.get('party_type'):
-                    result['aging_note'] = _('Note: Aging filters are set but no Party Type is selected. Please select "Customer" for receivable aging or "Supplier" for payable aging.')
-                elif filters.get('party_type') not in ['Customer', 'Supplier']:
-                    result['aging_note'] = _('Note: Aging analysis is only available for Customer (receivable) or Supplier (payable) party types.')
-                elif filters.get('account'):
-                    result['aging_note'] = _('Note: The selected account is not a Receivable or Payable account. Aging analysis requires a Receivable or Payable account, or remove the account filter to show all.')
-            
-            return result
+        # Check if aging data should be included separately
+        show_aging = filters.get('show_aging')
+        party_type = filters.get('party_type')
+        
+        if show_aging and party_type in ['Customer', 'Supplier']:
+            # Get aging data and include it separately
+            try:
+                aging_result = get_aged_receivable_payable_report(filters)
+                result['aging_data'] = {
+                    'columns': aging_result.get('columns', []),
+                    'data': aging_result.get('data', []),
+                    'party_type': party_type,
+                    'filters_applied': aging_result.get('filters_applied', {})
+                }
+            except Exception as aging_error:
+                frappe.log_error(str(aging_error), _("Aging Report Error"))
+                result['aging_data'] = {
+                    'error': True,
+                    'message': str(aging_error)
+                }
+        
+        return result
             
     except Exception as e:
         error_message = str(e)
@@ -224,11 +232,16 @@ def get_aged_receivable_payable_report(filters):
         from erpnext.accounts.report.accounts_payable.accounts_payable import execute
         account_type = 'Payable'
     
+    # Get ageing_based_on with proper default (empty string should default to 'Due Date')
+    ageing_based_on = filters.get('ageing_based_on')
+    if not ageing_based_on:
+        ageing_based_on = 'Due Date'
+    
     # Build filter dict for AR/AP report
     report_filters = frappe._dict({
         'company': filters.get('company'),
         'report_date': filters.get('to_date'),
-        'ageing_based_on': filters.get('ageing_based_on', 'Due Date'),
+        'ageing_based_on': ageing_based_on,
         'range': filters.get('ageing_range', '30, 60, 90, 120'),
         'party_type': party_type,
         'account_type': account_type,
@@ -446,7 +459,7 @@ def get_aging_data_map(filters):
 
 def get_standard_gl_report(filters):
     """
-    Get standard General Ledger report with optional aging columns
+    Get standard General Ledger report - exact ERPNext GL report without modifications
     """
     from erpnext.accounts.report.general_ledger.general_ledger import execute
     
@@ -498,25 +511,16 @@ def get_standard_gl_report(filters):
     # Convert to frappe._dict for attribute-style access
     report_filters = frappe._dict(report_filters)
     
-    # Execute the standard General Ledger report
+    # Execute the standard General Ledger report - NO MODIFICATIONS
     columns, data = execute(report_filters)
     
-    # Check if aging columns should be added
-    has_aging_filters = filters.get('ageing_based_on') or filters.get('ageing_range')
-    party_type = filters.get('party_type')
-    
-    if has_aging_filters and party_type in ['Customer', 'Supplier']:
-        # Enrich GL data with aging columns
-        columns, data = add_aging_columns_to_gl(columns, data, filters)
-    
-    # Return formatted response
+    # Return formatted response - pure GL data without any aging columns
     return {
         'columns': columns,
         'data': data,
         'message': _('Report generated successfully'),
         'report_mode': 'standard',
-        'filters_applied': report_filters,
-        'has_aging_columns': has_aging_filters and party_type in ['Customer', 'Supplier']
+        'filters_applied': report_filters
     }
 
 

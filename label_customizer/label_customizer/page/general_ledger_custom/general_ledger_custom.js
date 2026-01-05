@@ -1,159 +1,271 @@
 frappe.pages['general-ledger-custom'].on_page_load = function (wrapper) {
 	var page = frappe.ui.make_app_page({
 		parent: wrapper,
-		title: 'General Ledger Custom',
+		title: 'General Ledger',
 		single_column: true
 	});
 
-	// Add custom CSS
+	// Add custom CSS - Clean Professional Theme
 	const style = document.createElement('style');
 	style.textContent = `
-		.custom-filter-section {
-			box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+		/* Filter Section */
+		.gl-filter-section {
+			background: #ffffff;
+			border: 1px solid #e2e8f0;
+			border-radius: 6px;
+			padding: 20px;
+			margin-bottom: 20px;
 		}
-		.custom-filter-section .form-group {
-			margin-bottom: 15px;
-		}
-		.custom-filter-section label {
+		.gl-filter-section .section-title {
+			font-size: 14px;
 			font-weight: 600;
-			font-size: 13px;
-			color: #333;
+			color: #1a202c;
+			margin-bottom: 16px;
+			padding-bottom: 8px;
+			border-bottom: 1px solid #e2e8f0;
 		}
+		.gl-filter-section .form-group {
+			margin-bottom: 12px;
+		}
+		.gl-filter-section label {
+			font-weight: 500;
+			font-size: 12px;
+			color: #4a5568;
+			margin-bottom: 4px;
+		}
+		.gl-filter-section .form-control {
+			font-size: 13px;
+			border-color: #e2e8f0;
+			border-radius: 4px;
+		}
+		.gl-filter-section .form-control:focus {
+			border-color: #3182ce;
+			box-shadow: 0 0 0 1px #3182ce;
+		}
+		
+		/* Buttons */
+		.gl-btn-primary {
+			background: #3182ce;
+			border: none;
+			color: white;
+			padding: 8px 16px;
+			font-size: 13px;
+			font-weight: 500;
+			border-radius: 4px;
+			transition: background 0.2s;
+		}
+		.gl-btn-primary:hover {
+			background: #2c5282;
+			color: white;
+		}
+		.gl-btn-secondary {
+			background: #edf2f7;
+			border: 1px solid #e2e8f0;
+			color: #4a5568;
+			padding: 8px 16px;
+			font-size: 13px;
+			font-weight: 500;
+			border-radius: 4px;
+			transition: all 0.2s;
+		}
+		.gl-btn-secondary:hover {
+			background: #e2e8f0;
+			color: #2d3748;
+		}
+		.gl-btn-success {
+			background: #38a169;
+			border: none;
+			color: white;
+			padding: 8px 16px;
+			font-size: 13px;
+			font-weight: 500;
+			border-radius: 4px;
+		}
+		.gl-btn-success:hover {
+			background: #2f855a;
+			color: white;
+		}
+		
+		/* Table Styles */
 		#report_container table {
 			font-size: 12px;
+			border-collapse: collapse;
+			width: 100%;
 		}
 		#report_container table th {
-			background-color: #2c3e50;
-			color: white;
+			background: #2d3748;
+			color: #ffffff;
 			font-weight: 600;
+			font-size: 11px;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+			padding: 10px 12px;
 			position: sticky;
 			top: 0;
 			z-index: 10;
-			padding: 12px 8px;
-			border: 1px solid #34495e;
+			border: none;
 		}
 		#report_container table td {
-			padding: 8px;
-			vertical-align: middle;
+			padding: 10px 12px;
+			border-bottom: 1px solid #e2e8f0;
+			color: #2d3748;
 		}
-		#report_container .table-hover tbody tr:not(.table-info):hover {
-			background-color: #f8f9fa;
-			cursor: pointer;
+		#report_container .table-hover tbody tr:hover {
+			background-color: #f7fafc;
 		}
-		#report_container .table-bordered {
-			border: 1px solid #dee2e6;
+		#report_container tbody tr.summary-row {
+			background-color: #edf2f7;
+			font-weight: 600;
 		}
-		#report_container .table-bordered td,
-		#report_container .table-bordered th {
-			border: 1px solid #dee2e6;
+		#report_container tbody tr.summary-row td {
+			border-top: 2px solid #cbd5e0;
 		}
+		
+		/* Amount Colors */
 		.amount-debit {
-			color: #dc3545;
+			color: #c53030;
 			font-weight: 500;
 			text-align: right;
+			font-family: 'SF Mono', 'Monaco', monospace;
 		}
 		.amount-credit {
-			color: #28a745;
+			color: #276749;
 			font-weight: 500;
 			text-align: right;
+			font-family: 'SF Mono', 'Monaco', monospace;
 		}
+		
+		/* Party Link Field */
 		.party-link-field {
-			min-height: 34px;
+			min-height: 32px;
 		}
 		.party-link-field .frappe-control {
 			margin-bottom: 0;
 		}
-		.party-link-field .form-control {
-			height: 34px;
-		}
 		.party-link-field .control-input-wrapper {
 			margin-bottom: 0;
 		}
-		.party-link-field .pill-container {
-			border: 1px solid #ced4da;
-			border-radius: 4px;
-			padding: 4px;
-			min-height: 34px;
-		}
-		.receivable-row:hover {
-			background-color: #d4edda !important;
-		}
-		.payable-row:hover {
-			background-color: #fff3cd !important;
-		}
-		#report_container tbody tr.table-info {
-			background-color: #e3f2fd !important;
-			font-weight: 600;
-		}
-		#report_container tbody tr.table-info:hover {
-			background-color: #bbdefb !important;
-		}
-		#report_container tbody tr.table-info td {
-			border-top: 2px solid #2196f3;
-			border-bottom: 2px solid #2196f3;
-		}
-		#report_container th.aging-column {
-			background-color: #fff3cd !important;
-			color: #856404;
-			font-weight: 700;
-			border-left: 2px solid #ffc107;
-		}
-		#report_container td.aging-column-value {
-			background-color: #fffbf0;
-			font-weight: 500;
-			text-align: right;
-		}
-		.report-mode-badge {
-			display: inline-block;
-			padding: 5px 12px;
-			border-radius: 4px;
-			font-size: 12px;
-			font-weight: 600;
-			margin-bottom: 15px;
-		}
-		.mode-standard {
-			background-color: #e3f2fd;
-			color: #1976d2;
-		}
-		.mode-aging {
-			background-color: #fff3cd;
-			color: #856404;
-		}
-		.mode-combined {
-			background-color: #d4edda;
-			color: #155724;
-		}
-		.nav-tabs-custom {
-			border-bottom: 2px solid #dee2e6;
+		
+		/* Tab Navigation */
+		.gl-tabs {
+			display: flex;
+			border-bottom: 1px solid #e2e8f0;
 			margin-bottom: 20px;
 		}
-		.nav-tabs-custom .nav-link {
-			border: none;
-			border-bottom: 3px solid transparent;
-			padding: 12px 24px;
-			font-weight: 600;
-			color: #6c757d;
+		.gl-tabs .gl-tab {
+			padding: 12px 20px;
+			font-size: 13px;
+			font-weight: 500;
+			color: #718096;
 			cursor: pointer;
+			border-bottom: 2px solid transparent;
+			transition: all 0.2s;
 			background: none;
+			border-top: none;
+			border-left: none;
+			border-right: none;
 		}
-		.nav-tabs-custom .nav-link:hover {
-			color: #495057;
-			border-bottom-color: #dee2e6;
+		.gl-tabs .gl-tab:hover {
+			color: #2d3748;
 		}
-		.nav-tabs-custom .nav-link.active {
-			color: #007bff;
-			border-bottom-color: #007bff;
-			background: none;
+		.gl-tabs .gl-tab.active {
+			color: #3182ce;
+			border-bottom-color: #3182ce;
 		}
-		.tab-content-custom {
+		.gl-tab-content {
 			display: none;
 		}
-		.tab-content-custom.active {
+		.gl-tab-content.active {
 			display: block;
 		}
-		.combined-section {
-			background: linear-gradient(135deg, #e8f5e9 0%, #fff3e0 100%);
-			border: 1px solid #c8e6c9;
+		
+		/* Aging Section */
+		#aging_report_container {
+			background: #fffbeb;
+			border: 1px solid #f6e05e;
+			border-radius: 6px;
+			padding: 20px;
+			margin-top: 24px;
+		}
+		#aging_report_container .aging-section-header {
+			margin-bottom: 16px;
+			padding-bottom: 12px;
+			border-bottom: 1px solid #f6e05e;
+		}
+		#aging_report_container .aging-section-header h5 {
+			margin: 0;
+			font-size: 14px;
+			font-weight: 600;
+			color: #744210;
+		}
+		#aging_report_container table th {
+			background: #d69e2e !important;
+			color: white;
+		}
+		.aging-column-value {
+			text-align: right;
+			font-family: 'SF Mono', 'Monaco', monospace;
+		}
+		
+		/* Show Aging Checkbox */
+		#show_aging_container .checkbox label {
+			font-size: 13px;
+			color: #744210;
+			cursor: pointer;
+		}
+		
+		/* Empty State */
+		.gl-empty-state {
+			text-align: center;
+			padding: 60px 20px;
+			color: #a0aec0;
+		}
+		.gl-empty-state i {
+			font-size: 48px;
+			margin-bottom: 16px;
+			opacity: 0.5;
+		}
+		.gl-empty-state p {
+			font-size: 14px;
+			margin: 0;
+		}
+		
+		/* Report Summary */
+		.gl-report-summary {
+			background: #f7fafc;
+			border: 1px solid #e2e8f0;
+			border-radius: 4px;
+			padding: 12px 16px;
+			margin-top: 16px;
+			font-size: 13px;
+			color: #4a5568;
+		}
+		.gl-report-summary strong {
+			color: #2d3748;
+		}
+		
+		/* Collapsible Filters */
+		.gl-filter-row {
+			margin-bottom: 12px;
+		}
+		.gl-advanced-toggle {
+			font-size: 12px;
+			color: #718096;
+			cursor: pointer;
+			padding: 8px 0;
+			display: inline-block;
+		}
+		.gl-advanced-toggle:hover {
+			color: #3182ce;
+		}
+		.gl-advanced-filters {
+			display: none;
+			padding-top: 12px;
+			border-top: 1px solid #e2e8f0;
+			margin-top: 12px;
+		}
+		.gl-advanced-filters.show {
+			display: block;
 		}
 	`;
 	document.head.appendChild(style);
@@ -170,327 +282,295 @@ class GeneralLedgerCustom {
 	}
 
 	setup() {
-		console.log('✅ General Ledger Custom page loaded');
-
 		// Inject HTML content directly
 		const html = `
 <div class="frappe-control" data-fieldtype="HTML" data-fieldname="gl_custom_html">
-    <div class="form-message blue" style="margin-bottom: 20px;">
-        <div>
-            <strong>🎯 General Ledger - Custom View</strong>
-            <p class="text-muted" style="margin-top: 5px;">Enhanced General Ledger report with custom filters and features</p>
-        </div>
-    </div>
     
     <!-- Tab Navigation -->
-    <ul class="nav nav-tabs nav-tabs-custom" id="reportTabs">
-        <li class="nav-item">
-            <a class="nav-link active" id="gl-tab" data-tab="gl">
-                <i class="fa fa-book"></i> General Ledger
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" id="combined-tab" data-tab="combined">
-                <i class="fa fa-clock-o"></i> Combined Aging
-            </a>
-        </li>
-    </ul>
+    <div class="gl-tabs" id="reportTabs">
+        <button class="gl-tab active" data-tab="gl">General Ledger</button>
+        <button class="gl-tab" data-tab="combined">Combined Aging</button>
+    </div>
     
     <!-- Tab 1: General Ledger -->
-    <div class="tab-content-custom active" id="gl-content">
+    <div class="gl-tab-content active" id="gl-content">
     
-    <!-- Custom Filter Section -->
-    <div class="custom-filter-section" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-        <h5 style="margin-bottom: 15px;">📊 Custom Filters</h5>
+    <!-- Filter Section -->
+    <div class="gl-filter-section">
+        <div class="section-title">Filters</div>
         
-        <div class="row">
+        <!-- Primary Filters -->
+        <div class="row gl-filter-row">
             <div class="col-md-3">
                 <div class="form-group">
-                    <label class="control-label">Company *</label>
+                    <label>Company <span style="color:#c53030">*</span></label>
                     <select class="form-control" id="custom_company">
                         <option value="">Select Company</option>
                     </select>
                 </div>
             </div>
-            
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <div class="form-group">
-                    <label class="control-label">From Date *</label>
+                    <label>From Date <span style="color:#c53030">*</span></label>
                     <input type="date" class="form-control" id="custom_from_date">
                 </div>
             </div>
-            
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <div class="form-group">
-                    <label class="control-label">To Date *</label>
+                    <label>To Date <span style="color:#c53030">*</span></label>
                     <input type="date" class="form-control" id="custom_to_date">
                 </div>
             </div>
-            
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <div class="form-group">
-                    <label class="control-label">Account</label>
-                    <div id="custom_account_container"></div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="row">
-            <div class="col-md-3">
-                <div class="form-group">
-                    <label class="control-label">Department</label>
-                    <select class="form-control" id="custom_department">
-                        <option value="">All Departments</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div class="col-md-3">
-                <div class="form-group">
-                    <label class="control-label">Project</label>
-                    <div id="custom_project_container"></div>
-                </div>
-            </div>
-            
-            <div class="col-md-3">
-                <div class="form-group">
-                    <label class="control-label">Cost Center</label>
-                    <div id="custom_cost_center_container"></div>
-                </div>
-            </div>
-            
-            <div class="col-md-3">
-                <div class="form-group">
-                    <label class="control-label">Voucher Type</label>
-                    <select class="form-control" id="custom_voucher_type">
-                        <option value="">All Types</option>
-                        <option value="Sales Invoice">Sales Invoice</option>
-                        <option value="Purchase Invoice">Purchase Invoice</option>
-                        <option value="Payment Entry">Payment Entry</option>
-                        <option value="Journal Entry">Journal Entry</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-        
-        <div class="row">
-            <div class="col-md-3">
-                <div class="form-group">
-                    <label class="control-label">Party Type</label>
+                    <label>Party Type</label>
                     <select class="form-control" id="custom_party_type">
-                        <option value="">All Party Types</option>
+                        <option value="">All</option>
                         <option value="Customer">Customer</option>
                         <option value="Supplier">Supplier</option>
                         <option value="Employee">Employee</option>
                     </select>
                 </div>
             </div>
-            
             <div class="col-md-3">
                 <div class="form-group">
-                    <label class="control-label">Party</label>
+                    <label>Party</label>
                     <div id="custom_party_container"></div>
                 </div>
             </div>
-            
-            <div class="col-md-3">
-                <div class="form-group">
-                    <label class="control-label">Group By</label>
-                    <select class="form-control" id="custom_group_by">
-                        <option value="">No Grouping</option>
-                        <option value="Group by Voucher">Group by Voucher</option>
-                        <option value="Group by Account">Group by Account</option>
-                        <option value="Group by Party">Group by Party</option>
-                    </select>
+        </div>
+        
+        <!-- Toggle Advanced Filters -->
+        <span class="gl-advanced-toggle" id="toggle_advanced">
+            <i class="fa fa-chevron-down"></i> More Filters
+        </span>
+        
+        <!-- Advanced Filters (Hidden by default) -->
+        <div class="gl-advanced-filters" id="advanced_filters">
+            <div class="row gl-filter-row">
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label>Account</label>
+                        <div id="custom_account_container"></div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label>Cost Center</label>
+                        <div id="custom_cost_center_container"></div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label>Project</label>
+                        <div id="custom_project_container"></div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label>Voucher Type</label>
+                        <select class="form-control" id="custom_voucher_type">
+                            <option value="">All Types</option>
+                            <option value="Sales Invoice">Sales Invoice</option>
+                            <option value="Purchase Invoice">Purchase Invoice</option>
+                            <option value="Payment Entry">Payment Entry</option>
+                            <option value="Journal Entry">Journal Entry</option>
+                        </select>
+                    </div>
                 </div>
             </div>
             
-            <div class="col-md-3">
-                <div class="form-group">
-                    <label class="control-label">Include Dimensions</label>
-                    <select class="form-control" id="custom_include_dimensions">
-                        <option value="0">No</option>
-                        <option value="1">Yes</option>
-                    </select>
+            <div class="row gl-filter-row">
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label>Department</label>
+                        <select class="form-control" id="custom_department">
+                            <option value="">All Departments</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label>Group By</label>
+                        <select class="form-control" id="custom_group_by">
+                            <option value="">None</option>
+                            <option value="Group by Voucher">Voucher</option>
+                            <option value="Group by Account">Account</option>
+                            <option value="Group by Party">Party</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label>Show Opening</label>
+                        <select class="form-control" id="custom_show_opening">
+                            <option value="Yes">Yes</option>
+                            <option value="No">No</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label>Include Dimensions</label>
+                        <select class="form-control" id="custom_include_dimensions">
+                            <option value="0">No</option>
+                            <option value="1">Yes</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label>Show Cancelled</label>
+                        <select class="form-control" id="custom_show_cancelled">
+                            <option value="0">No</option>
+                            <option value="1">Yes</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Hidden field for Include Default FB -->
+            <input type="hidden" id="custom_include_default_fb" value="0">
+        </div>
+        
+        <!-- Aging Analysis (shown when Customer/Supplier selected) -->
+        <div id="show_aging_container" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid #e2e8f0;">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <div class="checkbox" style="margin-top: 24px;">
+                            <label>
+                                <input type="checkbox" id="custom_show_aging"> Show Aging Analysis
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label>Ageing Based On</label>
+                        <select class="form-control" id="custom_ageing_based_on">
+                            <option value="">Not Applicable</option>
+                            <option value="Posting Date">Posting Date</option>
+                            <option value="Due Date">Due Date</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label>Ageing Range (days)</label>
+                        <input type="text" class="form-control" id="custom_ageing_range" value="30, 60, 90, 120">
+                    </div>
                 </div>
             </div>
         </div>
         
-        <div class="row">
-            <div class="col-md-3">
-                <div class="form-group">
-                    <label class="control-label">Show Opening</label>
-                    <select class="form-control" id="custom_show_opening">
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div class="col-md-3">
-                <div class="form-group">
-                    <label class="control-label">Show Cancelled Entries</label>
-                    <select class="form-control" id="custom_show_cancelled">
-                        <option value="0">No</option>
-                        <option value="1">Yes</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div class="col-md-3">
-                <div class="form-group">
-                    <label class="control-label">Include Default FB Accounts</label>
-                    <select class="form-control" id="custom_include_default_fb">
-                        <option value="0">No</option>
-                        <option value="1">Yes</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Aging Filters Section -->
-        <div class="row" style="margin-top: 15px; padding-top: 15px; border-top: 2px solid #dee2e6;">
-            <div class="col-md-12">
-                <h6 style="margin-bottom: 15px; color: #495057;">⏰ Aging Analysis Filters</h6>
-            </div>
-        </div>
-        
-        <div class="row">
-            <div class="col-md-4">
-                <div class="form-group">
-                    <label class="control-label">Ageing Based On</label>
-                    <select class="form-control" id="custom_ageing_based_on">
-                        <option value="">Not Applicable</option>
-                        <option value="Posting Date">Posting Date</option>
-                        <option value="Due Date">Due Date</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div class="col-md-4">
-                <div class="form-group">
-                    <label class="control-label">Ageing Range (days)</label>
-                    <input type="text" class="form-control" id="custom_ageing_range" placeholder="e.g., 30, 60, 90, 120" value="30, 60, 90, 120">
-                </div>
-            </div>
-        </div>
-        
-        <div class="row">
-            <div class="col-md-12">
-                <button class="btn btn-primary btn-sm" id="btn_apply_filters">
-                    <i class="fa fa-filter"></i> Apply Filters & View Report
-                </button>
-                <button class="btn btn-default btn-sm" id="btn_reset_filters">
-                    <i class="fa fa-refresh"></i> Reset
-                </button>
-                <button class="btn btn-success btn-sm" id="btn_export_excel" style="float: right;">
-                    <i class="fa fa-download"></i> Export to Excel
-                </button>
-            </div>
+        <!-- Action Buttons -->
+        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
+            <button class="gl-btn-primary" id="btn_apply_filters">
+                <i class="fa fa-search"></i> Run Report
+            </button>
+            <button class="gl-btn-secondary" id="btn_reset_filters" style="margin-left: 8px;">
+                <i class="fa fa-refresh"></i> Reset
+            </button>
+            <button class="gl-btn-success" id="btn_export_excel" style="float: right;">
+                <i class="fa fa-download"></i> Export
+            </button>
         </div>
     </div>
     
     <!-- Report Container -->
-    <div id="report_container" style="min-height: 400px;">
-        <div class="text-center text-muted" style="padding: 60px 20px;">
-            <i class="fa fa-filter" style="font-size: 48px; opacity: 0.3;"></i>
-            <p style="margin-top: 20px; font-size: 16px;">Select filters and click "Apply Filters" to view the report</p>
+    <div id="report_container">
+        <div class="gl-empty-state">
+            <i class="fa fa-table"></i>
+            <p>Select filters and click "Run Report" to view data</p>
         </div>
     </div>
     
-    </div><!-- End Tab 1: GL Content -->
+    <!-- Aging Report Container -->
+    <div id="aging_report_container" style="display: none;">
+    </div>
+    
+    </div><!-- End Tab 1 -->
     
     <!-- Tab 2: Combined Aging -->
-    <div class="tab-content-custom" id="combined-content">
-        <div class="custom-filter-section combined-section" style="padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-            <h5 style="margin-bottom: 15px;">📊 Combined Aging Report</h5>
-            <p class="text-muted">View both Receivables and Payables aging in a single report</p>
+    <div class="gl-tab-content" id="combined-content">
+        <div class="gl-filter-section">
+            <div class="section-title">Combined Aging Report</div>
+            <p style="color: #718096; font-size: 13px; margin-bottom: 16px;">View receivables and payables aging in a single report</p>
             
-            <div class="row">
+            <div class="row gl-filter-row">
                 <div class="col-md-3">
                     <div class="form-group">
-                        <label class="control-label">Company *</label>
+                        <label>Company <span style="color:#c53030">*</span></label>
                         <select class="form-control" id="combined_company">
                             <option value="">Select Company</option>
                         </select>
                     </div>
                 </div>
-                
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <div class="form-group">
-                        <label class="control-label">As of Date *</label>
+                        <label>As of Date <span style="color:#c53030">*</span></label>
                         <input type="date" class="form-control" id="combined_report_date">
                     </div>
                 </div>
-                
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <div class="form-group">
-                        <label class="control-label">Ageing Based On</label>
+                        <label>Ageing Based On</label>
                         <select class="form-control" id="combined_ageing_based_on">
                             <option value="Due Date">Due Date</option>
                             <option value="Posting Date">Posting Date</option>
                         </select>
                     </div>
                 </div>
-                
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <div class="form-group">
-                        <label class="control-label">Ageing Range (days)</label>
+                        <label>Range (days)</label>
                         <input type="text" class="form-control" id="combined_ageing_range" value="30, 60, 90, 120">
                     </div>
                 </div>
-            </div>
-            
-            <div class="row">
                 <div class="col-md-3">
                     <div class="form-group">
-                        <label class="control-label">Customer (Receivables)</label>
-                        <div id="combined_customer_container"></div>
-                    </div>
-                </div>
-                
-                <div class="col-md-3">
-                    <div class="form-group">
-                        <label class="control-label">Supplier (Payables)</label>
-                        <div id="combined_supplier_container"></div>
-                    </div>
-                </div>
-                
-                <div class="col-md-3">
-                    <div class="form-group">
-                        <label class="control-label">Cost Center</label>
+                        <label>Cost Center</label>
                         <select class="form-control" id="combined_cost_center">
-                            <option value="">All Cost Centers</option>
+                            <option value="">All</option>
                         </select>
                     </div>
                 </div>
-                
+            </div>
+            
+            <div class="row gl-filter-row">
                 <div class="col-md-3">
-                    <div class="form-group" style="padding-top: 25px;">
-                        <button class="btn btn-success btn-sm btn-block" id="btn_combined_report">
-                            <i class="fa fa-clock-o"></i> Generate Report
-                        </button>
+                    <div class="form-group">
+                        <label>Customer</label>
+                        <div id="combined_customer_container"></div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label>Supplier</label>
+                        <div id="combined_supplier_container"></div>
                     </div>
                 </div>
             </div>
             
-            <div class="row">
-                <div class="col-md-12">
-                    <button class="btn btn-default btn-sm" id="btn_combined_reset">
-                        <i class="fa fa-refresh"></i> Reset Filters
-                    </button>
-                </div>
+            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
+                <button class="gl-btn-primary" id="btn_combined_report">
+                    <i class="fa fa-search"></i> Generate Report
+                </button>
+                <button class="gl-btn-secondary" id="btn_combined_reset" style="margin-left: 8px;">
+                    <i class="fa fa-refresh"></i> Reset
+                </button>
             </div>
         </div>
         
         <!-- Combined Report Container -->
-        <div id="combined_report_container" style="min-height: 400px;">
-            <div class="text-center text-muted" style="padding: 60px 20px;">
-                <i class="fa fa-clock-o" style="font-size: 48px; opacity: 0.3;"></i>
-                <p style="margin-top: 20px; font-size: 16px;">Click "Generate Combined Aging Report" to view both Receivables and Payables aging</p>
+        <div id="combined_report_container">
+            <div class="gl-empty-state">
+                <i class="fa fa-pie-chart"></i>
+                <p>Click "Generate Report" to view aging analysis</p>
             </div>
         </div>
-    </div><!-- End Tab 2: Combined Content -->
+    </div><!-- End Tab 2 -->
     
 </div>
 		`;
@@ -636,17 +716,33 @@ class GeneralLedgerCustom {
 		const me = this;
 
 		// Tab click handlers
-		this.wrapper.find('.nav-tabs-custom .nav-link').on('click', function (e) {
+		this.wrapper.find('.gl-tabs .gl-tab').on('click', function (e) {
 			e.preventDefault();
 			const tabId = $(this).data('tab');
 
 			// Update tab states
-			me.wrapper.find('.nav-tabs-custom .nav-link').removeClass('active');
+			me.wrapper.find('.gl-tabs .gl-tab').removeClass('active');
 			$(this).addClass('active');
 
 			// Update content visibility
-			me.wrapper.find('.tab-content-custom').removeClass('active');
+			me.wrapper.find('.gl-tab-content').removeClass('active');
 			me.wrapper.find(`#${tabId}-content`).addClass('active');
+		});
+
+		// Advanced filters toggle
+		this.wrapper.find('#toggle_advanced').on('click', function () {
+			const advancedFilters = me.wrapper.find('#advanced_filters');
+			const icon = $(this).find('i');
+			
+			if (advancedFilters.hasClass('show')) {
+				advancedFilters.removeClass('show');
+				icon.removeClass('fa-chevron-up').addClass('fa-chevron-down');
+				$(this).html('<i class="fa fa-chevron-down"></i> More Filters');
+			} else {
+				advancedFilters.addClass('show');
+				icon.removeClass('fa-chevron-down').addClass('fa-chevron-up');
+				$(this).html('<i class="fa fa-chevron-up"></i> Less Filters');
+			}
 		});
 
 		// Load companies for combined tab
@@ -829,9 +925,10 @@ class GeneralLedgerCustom {
 			}
 		});
 
-		// Party type change event - refresh party field
+		// Party type change event - refresh party field and toggle aging checkbox visibility
 		this.wrapper.find('#custom_party_type').on('change', function () {
 			me.init_party_field();
+			me.toggle_aging_checkbox_visibility();
 		});
 
 		// Combined aging report button
@@ -896,6 +993,20 @@ class GeneralLedgerCustom {
 		});
 
 		this.party_control.refresh();
+	}
+
+	toggle_aging_checkbox_visibility() {
+		const partyType = this.wrapper.find('#custom_party_type').val();
+		const agingCheckboxContainer = this.wrapper.find('#show_aging_container');
+		
+		// Show checkbox only for Customer or Supplier party types
+		if (partyType === 'Customer' || partyType === 'Supplier') {
+			agingCheckboxContainer.show();
+		} else {
+			agingCheckboxContainer.hide();
+			// Uncheck the checkbox when hidden
+			this.wrapper.find('#custom_show_aging').prop('checked', false);
+		}
 	}
 
 	set_default_dates() {
@@ -1044,7 +1155,9 @@ class GeneralLedgerCustom {
 			include_default_book_entries: this.wrapper.find('#custom_include_default_fb').val(),
 			// Aging filters
 			ageing_based_on: this.wrapper.find('#custom_ageing_based_on').val(),
-			ageing_range: this.wrapper.find('#custom_ageing_range').val()
+			ageing_range: this.wrapper.find('#custom_ageing_range').val(),
+			// Show aging in separate table
+			show_aging: this.wrapper.find('#custom_show_aging').is(':checked')
 		};
 	}
 
@@ -1060,13 +1173,21 @@ class GeneralLedgerCustom {
 
 		// Show loading
 		this.wrapper.find('#report_container').html(`
-			<div class="text-center" style="padding: 60px 20px;">
-				<div class="spinner-border text-primary" role="status">
-					<span class="sr-only">Loading...</span>
-				</div>
-				<p class="text-muted" style="margin-top: 20px;">Loading report data...</p>
+			<div class="gl-empty-state">
+				<i class="fa fa-spinner fa-spin"></i>
+				<p>Loading report...</p>
 			</div>
 		`);
+
+		// Also show loading in aging container if show_aging is checked
+		if (filters.show_aging) {
+			this.wrapper.find('#aging_report_container').html(`
+				<div class="gl-empty-state" style="padding: 30px;">
+					<i class="fa fa-spinner fa-spin"></i>
+					<p>Loading aging analysis...</p>
+				</div>
+			`).show();
+		}
 
 		// Call backend to get report data
 		frappe.call({
@@ -1114,12 +1235,12 @@ class GeneralLedgerCustom {
 	render_report(data) {
 		const columns = data.columns;
 		let rows = data.data;
-		const reportMode = data.report_mode || 'standard';
 
 		if (!rows || rows.length === 0) {
 			this.wrapper.find('#report_container').html(`
-				<div class="alert alert-info">
-					<i class="fa fa-info-circle"></i> No data found for the selected filters.
+				<div class="gl-empty-state">
+					<i class="fa fa-inbox"></i>
+					<p>No data found for the selected filters</p>
 				</div>
 			`);
 			return;
@@ -1128,177 +1249,303 @@ class GeneralLedgerCustom {
 		// Remove duplicate rows (especially summary rows)
 		rows = this.remove_duplicate_rows(rows, columns);
 
-		// Add mode indicator
-		let modeLabel = '';
-		if (reportMode === 'aging') {
-			modeLabel = `<div class="report-mode-badge mode-aging">
-				<i class="fa fa-clock-o"></i> Aging Analysis Mode - Showing aging buckets
-			</div>`;
-		} else if (data.has_aging_columns) {
-			modeLabel = `<div class="report-mode-badge mode-standard">
-				<i class="fa fa-book"></i> General Ledger with Aging Columns
-			</div>`;
-		} else {
-			modeLabel = `<div class="report-mode-badge mode-standard">
-				<i class="fa fa-book"></i> Standard General Ledger Mode
-			</div>`;
-		}
-
-		// Add aging note if present
-		let agingNote = '';
-		if (data.aging_note) {
-			agingNote = `<div class="alert alert-warning" style="margin-bottom: 15px;">
-				<i class="fa fa-info-circle"></i> ${data.aging_note}
-			</div>`;
-		}
-
-		// Build table HTML
-		let html = modeLabel + agingNote;
-		html += '<div class="table-responsive"><table class="table table-bordered table-hover table-sm">';
-
-		// Table header
-		html += '<thead><tr>';
-		columns.forEach(col => {
-			// Detect and mark aging columns (match patterns like "0-30", "120+", "Above")
-			let headerClass = '';
-			if (col.label && col.label.match(/^\d+-\d+|^\d+\+|^\d+-Above|Above/i)) {
-				headerClass = 'aging-column';
-			}
-			html += `<th class="${headerClass}">${col.label}</th>`;
-		});
-		html += '</tr></thead>';
-
-		// Table body
-		html += '<tbody>';
-		let dataRowCount = 0;
-
-		rows.forEach(row => {
-			// Skip completely empty rows
-			if (this.is_empty_row(row, columns)) {
-				return;
-			}
-
-			if (typeof row === 'object' && !Array.isArray(row)) {
-				// Check if this is a summary row
-				const isSummaryRow = this.is_summary_row(row, columns);
-				const rowClass = isSummaryRow ? 'table-info font-weight-bold' : '';
-
-				if (!isSummaryRow) {
-					dataRowCount++;
+		// Prepare columns for DataTable
+		const dtColumns = columns.map(col => ({
+			name: col.label || col.fieldname,
+			id: col.fieldname,
+			fieldtype: col.fieldtype,
+			width: col.width || 120,
+			editable: false,
+			sortable: true,
+			focusable: true,
+			format: (value, row, column, data) => {
+				if (value === null || value === undefined) return '';
+				
+				// Handle summary labels
+				if (typeof value === 'string' && value.match(/^'(Opening|Total|Closing)/)) {
+					return `<strong>${value.replace(/'/g, '')}</strong>`;
 				}
-
-				html += `<tr class="${rowClass}">`;
-				columns.forEach((col, idx) => {
-					let value = row[col.fieldname] || '';
-					let cellClass = '';
-					let cellStyle = '';
-
-					// For summary rows
-					if (isSummaryRow && idx === 0) {
-						cellClass = 'font-weight-bold';
-						cellStyle = 'background-color: #e3f2fd; font-weight: 600;';
-					} else if (isSummaryRow) {
-						cellStyle = 'background-color: #e3f2fd; font-weight: 600;';
+				
+				// Format currency
+				if (col.fieldtype === 'Currency' || col.fieldtype === 'Float') {
+					const numValue = parseFloat(value) || 0;
+					const formatted = this.format_currency(numValue);
+					
+					// Color for debit/credit
+					if (col.fieldname === 'debit' && numValue > 0) {
+						return `<span style="color: #c53030;">${formatted}</span>`;
+					} else if (col.fieldname === 'credit' && numValue > 0) {
+						return `<span style="color: #276749;">${formatted}</span>`;
 					}
-
-					// Mark aging column values (match patterns like "0-30", "120+", "Above")
-					if (col.label && col.label.match(/^\d+-\d+|^\d+\+|^\d+-Above|Above/i)) {
-						cellClass += ' aging-column-value';
-					}
-
-					// Format numbers
-					if (col.fieldtype === 'Currency' || col.fieldtype === 'Float') {
-						const numValue = parseFloat(value) || 0;
-						// For aging columns, show empty if null/zero, otherwise format
-						if (cellClass.includes('aging-column-value') && (value === null || value === '' || numValue === 0)) {
-							value = '';
-						} else {
-							value = this.format_currency(numValue);
-						}
-
-						// Add color classes for debit/credit (only for data rows)
-						if (!isSummaryRow) {
-							if (col.fieldname === 'debit' && numValue > 0) {
-								cellClass += ' amount-debit';
-							} else if (col.fieldname === 'credit' && numValue > 0) {
-								cellClass += ' amount-credit';
-							}
-						}
-					}
-
-					// Format dates
-					if (col.fieldtype === 'Date' && value) {
-						value = frappe.datetime.str_to_user(value);
-					}
-
-					// Handle string values that might be summary labels
-					if (typeof value === 'string' && value.match(/^'(Opening|Total|Closing)/)) {
-						value = value.replace(/'/g, '');
-						cellClass += ' font-weight-bold';
-					}
-
-					html += `<td class="${cellClass}" style="${cellStyle}">${value}</td>`;
-				});
-				html += '</tr>';
+					return formatted;
+				}
+				
+				// Format dates
+				if (col.fieldtype === 'Date' && value) {
+					return frappe.datetime.str_to_user(value);
+				}
+				
+				// Link for voucher_no
+				if (col.fieldname === 'voucher_no' && value && data.voucher_type) {
+					return `<a href="/app/${frappe.router.slug(data.voucher_type)}/${value}" target="_blank">${value}</a>`;
+				}
+				
+				return value;
 			}
+		}));
+
+		// Prepare data for DataTable
+		const dtData = rows.filter(row => {
+			if (typeof row !== 'object' || Array.isArray(row)) return false;
+			return !this.is_empty_row(row, columns);
+		}).map(row => {
+			const rowData = {};
+			columns.forEach(col => {
+				rowData[col.fieldname] = row[col.fieldname];
+			});
+			return rowData;
 		});
-		html += '</tbody>';
-		html += '</table></div>';
 
-		// Add summary
-		let summaryBadge = reportMode === 'aging' ? 'badge-warning' : 'badge-success';
-		html += `<div class="alert alert-success" style="margin-top: 20px;">
-			<strong>✅ Report Generated Successfully</strong><br>
-			<span class="badge ${summaryBadge}">${reportMode === 'aging' ? 'Aging Mode' : 'Standard Mode'}</span>
-			Data Entries: ${dataRowCount}
-		</div>`;
+		// Count data rows (exclude summary rows)
+		const dataRowCount = dtData.filter(row => !this.is_summary_row(row, columns)).length;
 
-		this.wrapper.find('#report_container').html(html);
+		// Clear container and create DataTable wrapper
+		this.wrapper.find('#report_container').html(`
+			<div id="gl_datatable" style="margin-bottom: 12px;"></div>
+			<div class="gl-report-summary">
+				<strong>${dataRowCount}</strong> entries found
+			</div>
+		`);
+
+		// Destroy existing datatable if any
+		if (this.datatable) {
+			this.datatable.destroy();
+		}
+
+		// Create new DataTable
+		this.datatable = new frappe.DataTable('#gl_datatable', {
+			columns: dtColumns,
+			data: dtData,
+			serialNoColumn: false,
+			checkboxColumn: false,
+			cellHeight: 35,
+			layout: 'fluid',
+			noDataMessage: 'No data found',
+			getEditor: () => null // Disable editing
+		});
+
+		// Add row click handler for summary rows styling
+		setTimeout(() => {
+			const datatableBody = this.wrapper.find('#gl_datatable .dt-scrollable');
+			datatableBody.find('.dt-row').each((idx, rowEl) => {
+				const rowData = dtData[idx];
+				if (rowData && this.is_summary_row(rowData, columns)) {
+					$(rowEl).css({
+						'background-color': '#f7fafc',
+						'font-weight': '600'
+					});
+				}
+			});
+		}, 100);
+		
+		// Handle aging data if present (render in separate container)
+		if (data.aging_data) {
+			this.render_aging_table(data.aging_data);
+		} else {
+			// Hide aging container if no aging data
+			this.wrapper.find('#aging_report_container').hide().empty();
+		}
+	}
+
+	render_aging_table(agingData) {
+		const agingContainer = this.wrapper.find('#aging_report_container');
+		
+		// Check for errors
+		if (agingData.error) {
+			agingContainer.html(`
+				<div style="padding: 16px; background: #fed7d7; border-radius: 4px; color: #c53030;">
+					<strong>Error:</strong> ${agingData.message || 'Failed to load aging data'}
+				</div>
+			`).show();
+			return;
+		}
+		
+		const allColumns = agingData.columns || [];
+		let rows = agingData.data || [];
+		const partyType = agingData.party_type || 'Customer';
+		
+		if (!rows || rows.length === 0) {
+			agingContainer.html(`
+				<div class="aging-section-header">
+					<h5>Aging Analysis - ${partyType === 'Customer' ? 'Receivables' : 'Payables'}</h5>
+				</div>
+				<div class="gl-empty-state" style="padding: 30px;">
+					<i class="fa fa-inbox"></i>
+					<p>No aging data found</p>
+				</div>
+			`).show();
+			return;
+		}
+		
+		// Filter to only show aging-related columns
+		const agingColumns = allColumns.filter(col => {
+			const fieldname = (col.fieldname || '').toLowerCase();
+			const label = (col.label || '').toLowerCase();
+			
+			if (fieldname === 'party' || fieldname === 'party_name') return true;
+			if (fieldname === 'outstanding' || fieldname === 'outstanding_amount' || 
+			    fieldname === 'balance' || label.includes('outstanding') || label.includes('balance')) return true;
+			if (fieldname.startsWith('range') || fieldname.match(/^age_\d+/)) return true;
+			if (label.match(/^\d+-\d+|^\d+\+|above/i)) return true;
+			
+			return false;
+		});
+		
+		if (agingColumns.length === 0) {
+			agingContainer.html(`
+				<div class="aging-section-header">
+					<h5>Aging Analysis - ${partyType === 'Customer' ? 'Receivables' : 'Payables'}</h5>
+				</div>
+				<div class="gl-empty-state" style="padding: 30px;">
+					<i class="fa fa-exclamation-triangle"></i>
+					<p>No aging columns found</p>
+				</div>
+			`).show();
+			return;
+		}
+		
+		// Filter rows with aging data
+		const filteredRows = rows.filter(row => {
+			if (typeof row !== 'object' || Array.isArray(row)) return false;
+			return agingColumns.some(col => {
+				const fieldname = (col.fieldname || '').toLowerCase();
+				if (fieldname === 'party' || fieldname === 'party_name') return false;
+				const value = row[col.fieldname];
+				return value && parseFloat(value) !== 0;
+			});
+		});
+
+		// Prepare columns for DataTable
+		const dtColumns = agingColumns.map(col => ({
+			name: col.label || col.fieldname,
+			id: col.fieldname,
+			fieldtype: col.fieldtype,
+			width: col.width || 100,
+			editable: false,
+			sortable: true,
+			format: (value) => {
+				if (value === null || value === undefined) return '';
+				if (col.fieldtype === 'Currency' || col.fieldtype === 'Float') {
+					const numValue = parseFloat(value) || 0;
+					return numValue === 0 ? '-' : this.format_currency(numValue);
+				}
+				return value;
+			}
+		}));
+
+		// Prepare data
+		const dtData = filteredRows.map(row => {
+			const rowData = {};
+			agingColumns.forEach(col => {
+				rowData[col.fieldname] = row[col.fieldname];
+			});
+			return rowData;
+		});
+
+		// Render
+		agingContainer.html(`
+			<div class="aging-section-header">
+				<h5>Aging Analysis - ${partyType === 'Customer' ? 'Receivables' : 'Payables'}</h5>
+			</div>
+			<div id="aging_datatable"></div>
+			<div class="gl-report-summary" style="margin-top: 12px;">
+				<strong>${filteredRows.length}</strong> parties with outstanding
+			</div>
+		`).show();
+
+		// Destroy existing aging datatable
+		if (this.aging_datatable) {
+			this.aging_datatable.destroy();
+		}
+
+		// Create DataTable
+		this.aging_datatable = new frappe.DataTable('#aging_datatable', {
+			columns: dtColumns,
+			data: dtData,
+			serialNoColumn: false,
+			checkboxColumn: false,
+			cellHeight: 35,
+			layout: 'fluid',
+			noDataMessage: 'No aging data',
+			getEditor: () => null
+		});
 	}
 
 	remove_duplicate_rows(rows, columns) {
-		// Remove duplicate summary rows (Opening, Total, Closing)
-		const seenSummaries = new Map(); // Track all summary rows by type and values
-		const filteredRows = [];
-		const firstCol = columns[0];
-		const debitCol = columns.find(c => c.fieldname && c.fieldname.toLowerCase() === 'debit');
-		const creditCol = columns.find(c => c.fieldname && c.fieldname.toLowerCase() === 'credit');
-		const balanceCol = columns.find(c => c.fieldname && c.fieldname.toLowerCase().includes('balance'));
+		// Remove intermediate summary rows - keep only data rows and the LAST Total/Closing rows
+		const dataRows = [];
+		const accountCol = columns.find(c => c.fieldname === 'account');
+
+		let lastOpeningRow = null;
+		let lastTotalRow = null;
+		let lastClosingRow = null;
+		let summaryRowsSkipped = 0;
+		let emptyRowsSkipped = 0;
 
 		rows.forEach((row, index) => {
 			if (typeof row === 'object' && !Array.isArray(row)) {
-				const firstValue = String(row[firstCol.fieldname] || '').trim();
+				// Skip completely empty rows (rows with null/empty values in key fields)
+				const glEntry = row['gl_entry'];
+				const account = row['account'];
+				const isEmptyRow = !glEntry && (!account || account === null);
+				
+				if (isEmptyRow) {
+					emptyRowsSkipped++;
+					return; // Skip empty separator rows
+				}
+
 				const isSummaryRow = this.is_summary_row(row, columns);
 
-				if (isSummaryRow && firstValue) {
-					// Create a unique key based on summary type and key values
-					const summaryType = firstValue.toLowerCase().replace(/'/g, '');
-					const debit = parseFloat(row[debitCol ? debitCol.fieldname : ''] || 0).toFixed(2);
-					const credit = parseFloat(row[creditCol ? creditCol.fieldname : ''] || 0).toFixed(2);
-					const balance = parseFloat(row[balanceCol ? balanceCol.fieldname : ''] || 0).toFixed(2);
-
-					// Key combines type and values
-					const key = `${summaryType}|${debit}|${credit}|${balance}`;
-
-					// Check if we've seen this exact summary before
-					if (seenSummaries.has(key)) {
-						return; // Skip this duplicate
+				if (isSummaryRow) {
+					// Track the LAST occurrence of each summary type
+					const accountValue = String(row[accountCol ? accountCol.fieldname : ''] || '').trim().toLowerCase().replace(/'/g, '');
+					
+					if (accountValue.includes('opening') && !accountValue.includes('closing') && !accountValue.includes('total')) {
+						lastOpeningRow = row;
+					} else if (accountValue.includes('closing')) {
+						// "Closing (Opening + Total)" contains 'closing'
+						lastClosingRow = row;
+					} else if (accountValue.includes('total') && !accountValue.includes('closing')) {
+						// Only 'Total' rows, not 'Closing (Opening + Total)'
+						lastTotalRow = row;
 					}
-
-					// Mark as seen and include
-					seenSummaries.set(key, true);
-					filteredRows.push(row);
+					summaryRowsSkipped++;
 				} else {
-					// Always include non-summary rows
-					filteredRows.push(row);
+					// Include all data rows (non-summary rows)
+					dataRows.push(row);
 				}
-			} else {
-				// Include non-object rows as-is
-				filteredRows.push(row);
 			}
 		});
 
-		return filteredRows;
+		// Add only the LAST summary rows at the end (Opening first, then Total, then Closing)
+		const finalRows = [...dataRows];
+		if (lastOpeningRow) {
+			// Only add opening if it has meaningful values (not all zeros)
+			const hasValues = parseFloat(lastOpeningRow['debit'] || 0) !== 0 || 
+			                  parseFloat(lastOpeningRow['credit'] || 0) !== 0 ||
+			                  parseFloat(lastOpeningRow['balance'] || 0) !== 0;
+			if (hasValues) {
+				finalRows.unshift(lastOpeningRow); // Add at beginning
+			}
+		}
+		if (lastTotalRow) {
+			finalRows.push(lastTotalRow);
+		}
+		if (lastClosingRow) {
+			finalRows.push(lastClosingRow);
+		}
+
+		return finalRows;
 	}
 
 	is_empty_row(row, columns) {
@@ -1313,15 +1560,31 @@ class GeneralLedgerCustom {
 	}
 
 	is_summary_row(row, columns) {
-		// Check if first column contains summary keywords
-		const firstCol = columns[0];
-		const firstValue = row[firstCol.fieldname];
+		// Check multiple columns for summary keywords (ERPNext puts summary labels in 'account' column, not first column)
+		// Check: first column, account column, and any column with summary-like values
+		const columnsToCheck = [
+			columns[0],
+			columns.find(c => c.fieldname === 'account'),
+			columns.find(c => c.fieldname === 'voucher_type')
+		].filter(Boolean);
 
-		if (typeof firstValue === 'string') {
-			const cleanValue = firstValue.replace(/'/g, '').toLowerCase();
-			return cleanValue.includes('opening') ||
-				cleanValue.includes('total') ||
-				cleanValue.includes('closing');
+		for (const col of columnsToCheck) {
+			const value = row[col.fieldname];
+			if (typeof value === 'string') {
+				const cleanValue = value.replace(/'/g, '').toLowerCase();
+				if (cleanValue.includes('opening') ||
+					cleanValue.includes('total') ||
+					cleanValue.includes('closing')) {
+					return true;
+				}
+			}
+		}
+
+		// Also check if gl_entry is null/empty but account has a value starting with quote (ERPNext pattern)
+		const glEntry = row['gl_entry'];
+		const account = row['account'];
+		if (!glEntry && typeof account === 'string' && account.startsWith("'")) {
+			return true;
 		}
 
 		return false;
@@ -1361,12 +1624,16 @@ class GeneralLedgerCustom {
 		// Reset aging filters
 		this.wrapper.find('#custom_ageing_based_on').val('');
 		this.wrapper.find('#custom_ageing_range').val('30, 60, 90, 120');
+		// Reset show aging checkbox and hide container
+		this.wrapper.find('#custom_show_aging').prop('checked', false);
+		this.wrapper.find('#show_aging_container').hide();
+		this.wrapper.find('#aging_report_container').hide().empty();
 		this.set_default_dates();
 
 		this.wrapper.find('#report_container').html(`
-			<div class="text-center text-muted" style="padding: 60px 20px;">
-				<i class="fa fa-filter" style="font-size: 48px; opacity: 0.3;"></i>
-				<p style="margin-top: 20px; font-size: 16px;">Select filters and click "Apply Filters" to view the report</p>
+			<div class="gl-empty-state">
+				<i class="fa fa-table"></i>
+				<p>Select filters and click "Run Report" to view data</p>
 			</div>
 		`);
 	}
@@ -1398,9 +1665,9 @@ class GeneralLedgerCustom {
 		this.set_combined_default_date();
 
 		this.wrapper.find('#combined_report_container').html(`
-			<div class="text-center text-muted" style="padding: 60px 20px;">
-				<i class="fa fa-clock-o" style="font-size: 48px; opacity: 0.3;"></i>
-				<p style="margin-top: 20px; font-size: 16px;">Click "Generate Combined Aging Report" to view both Receivables and Payables aging</p>
+			<div class="gl-empty-state">
+				<i class="fa fa-pie-chart"></i>
+				<p>Click "Generate Report" to view aging analysis</p>
 			</div>
 		`);
 	}
@@ -1496,138 +1763,122 @@ class GeneralLedgerCustom {
 		const recData = receivables.data || [];
 		const payData = payables.data || [];
 
-		// Use receivables columns as base (both reports have similar structure)
+		// Use receivables columns as base
 		const columns = recColumns.length > 0 ? recColumns : payColumns;
 
 		if (!columns.length && !recData.length && !payData.length) {
 			this.wrapper.find('#combined_report_container').html(`
-				<div class="alert alert-info">
-					<strong>No Data</strong>: No receivables or payables data available for the selected filters.
+				<div class="gl-empty-state">
+					<i class="fa fa-inbox"></i>
+					<p>No receivables or payables data found</p>
 				</div>
 			`);
 			return;
 		}
 
-		let html = `
-			<div class="report-mode-badge mode-combined">
-				<i class="fa fa-clock-o"></i> Combined Aging Analysis Mode
-			</div>
-		`;
-
-		// Summary cards at top
-		html += this.render_combined_summary(receivables, payables);
-
-		// Build unified table
-		html += '<div class="table-responsive" style="margin-top: 20px;">';
-		html += '<table class="table table-bordered table-hover" style="font-size: 12px;">';
-
-		// Header - add Type column first
-		html += '<thead><tr>';
-		html += '<th style="white-space: nowrap; background: #495057; color: white;">Type</th>';
-		columns.forEach(col => {
-			const isAgingCol = col.fieldname && col.fieldname.match(/range\d+|age_\d+/i);
-			const headerClass = isAgingCol ? 'aging-column' : '';
-			html += `<th class="${headerClass}" style="white-space: nowrap;">${col.label || col.fieldname}</th>`;
-		});
-		html += '</tr></thead>';
-
-		// Body - combine both datasets
-		html += '<tbody>';
-
-		// Add receivables rows
-		recData.forEach(row => {
-			if (typeof row !== 'object' || Array.isArray(row)) return;
-
-			html += '<tr class="receivable-row" style="background-color: #f0fff0;">';
-			html += '<td style="font-weight: 600; color: #28a745;"><i class="fa fa-arrow-down"></i> Receivable</td>';
-			columns.forEach(col => {
-				let value = row[col.fieldname] || '';
-				const isAgingCol = col.fieldname && col.fieldname.match(/range\d+|age_\d+/i);
-				let cellClass = isAgingCol ? 'aging-column-value' : '';
-
-				// Format currency
-				if (col.fieldtype === 'Currency' && value) {
-					value = this.format_currency(value);
-				}
-
-				html += `<td class="${cellClass}">${value}</td>`;
-			});
-			html += '</tr>';
-		});
-
-		// Add payables rows
-		payData.forEach(row => {
-			if (typeof row !== 'object' || Array.isArray(row)) return;
-
-			html += '<tr class="payable-row" style="background-color: #fffbf0;">';
-			html += '<td style="font-weight: 600; color: #ffc107;"><i class="fa fa-arrow-up"></i> Payable</td>';
-			columns.forEach(col => {
-				let value = row[col.fieldname] || '';
-				const isAgingCol = col.fieldname && col.fieldname.match(/range\d+|age_\d+/i);
-				let cellClass = isAgingCol ? 'aging-column-value' : '';
-
-				// Format currency
-				if (col.fieldtype === 'Currency' && value) {
-					value = this.format_currency(value);
-				}
-
-				html += `<td class="${cellClass}">${value}</td>`;
-			});
-			html += '</tr>';
-		});
-
-		html += '</tbody>';
-		html += '</table></div>';
-
-		// Entry count summary
-		html += `<div class="alert alert-success" style="margin-top: 20px;">
-			<strong>✅ Combined Aging Report Generated Successfully</strong><br>
-			<span class="badge badge-success">${recData.length} Receivables</span>
-			<span class="badge badge-warning">${payData.length} Payables</span>
-			<span class="badge badge-info">${recData.length + payData.length} Total Entries</span>
-		</div>`;
-
-		this.wrapper.find('#combined_report_container').html(html);
-	}
-
-	render_combined_summary(receivables, payables) {
-		// Use totals calculated by backend
+		// Calculate totals
 		const recTotal = parseFloat(receivables.total) || 0;
 		const payTotal = parseFloat(payables.total) || 0;
-
 		const netPosition = recTotal - payTotal;
-		const netClass = netPosition >= 0 ? 'success' : 'danger';
-		const netLabel = netPosition >= 0 ? 'Net Receivable' : 'Net Payable';
 
-		return `
-			<div class="row" style="margin-top: 10px; margin-bottom: 10px;">
+		// Prepare combined data with type column
+		const combinedData = [];
+		
+		recData.forEach(row => {
+			if (typeof row === 'object' && !Array.isArray(row)) {
+				combinedData.push({ ...row, _type: 'Receivable' });
+			}
+		});
+		
+		payData.forEach(row => {
+			if (typeof row === 'object' && !Array.isArray(row)) {
+				combinedData.push({ ...row, _type: 'Payable' });
+			}
+		});
+
+		// Prepare columns for DataTable (add Type column first)
+		const dtColumns = [
+			{
+				name: 'Type',
+				id: '_type',
+				width: 100,
+				editable: false,
+				sortable: true,
+				format: (value) => {
+					if (value === 'Receivable') {
+						return `<span style="color: #276749; font-weight: 500;">Receivable</span>`;
+					} else {
+						return `<span style="color: #c05621; font-weight: 500;">Payable</span>`;
+					}
+				}
+			},
+			...columns.map(col => ({
+				name: col.label || col.fieldname,
+				id: col.fieldname,
+				fieldtype: col.fieldtype,
+				width: col.width || 100,
+				editable: false,
+				sortable: true,
+				format: (value) => {
+					if (value === null || value === undefined) return '';
+					if (col.fieldtype === 'Currency' || col.fieldtype === 'Float') {
+						const numValue = parseFloat(value) || 0;
+						return numValue === 0 ? '-' : this.format_currency(numValue);
+					}
+					if (col.fieldtype === 'Date' && value) {
+						return frappe.datetime.str_to_user(value);
+					}
+					return value;
+				}
+			}))
+		];
+
+		// Render HTML
+		this.wrapper.find('#combined_report_container').html(`
+			<div class="row" style="margin-bottom: 20px;">
 				<div class="col-md-4">
-					<div class="card text-white bg-success">
-						<div class="card-body text-center" style="padding: 15px;">
-							<h6 class="card-title" style="margin-bottom: 5px;">Total Receivables</h6>
-							<h4 style="margin: 0;">${this.format_currency(recTotal)}</h4>
-						</div>
+					<div style="background: #c6f6d5; padding: 16px; border-radius: 6px; text-align: center;">
+						<div style="font-size: 12px; color: #276749; margin-bottom: 4px;">Total Receivables</div>
+						<div style="font-size: 20px; font-weight: 600; color: #22543d;">${this.format_currency(recTotal)}</div>
 					</div>
 				</div>
 				<div class="col-md-4">
-					<div class="card text-white bg-warning">
-						<div class="card-body text-center" style="padding: 15px;">
-							<h6 class="card-title" style="margin-bottom: 5px;">Total Payables</h6>
-							<h4 style="margin: 0;">${this.format_currency(payTotal)}</h4>
-						</div>
+					<div style="background: #feebc8; padding: 16px; border-radius: 6px; text-align: center;">
+						<div style="font-size: 12px; color: #c05621; margin-bottom: 4px;">Total Payables</div>
+						<div style="font-size: 20px; font-weight: 600; color: #7b341e;">${this.format_currency(payTotal)}</div>
 					</div>
 				</div>
 				<div class="col-md-4">
-					<div class="card text-white bg-${netClass}">
-						<div class="card-body text-center" style="padding: 15px;">
-							<h6 class="card-title" style="margin-bottom: 5px;">${netLabel}</h6>
-							<h4 style="margin: 0;">${this.format_currency(Math.abs(netPosition))}</h4>
-						</div>
+					<div style="background: ${netPosition >= 0 ? '#c6f6d5' : '#fed7d7'}; padding: 16px; border-radius: 6px; text-align: center;">
+						<div style="font-size: 12px; color: ${netPosition >= 0 ? '#276749' : '#c53030'}; margin-bottom: 4px;">${netPosition >= 0 ? 'Net Receivable' : 'Net Payable'}</div>
+						<div style="font-size: 20px; font-weight: 600; color: ${netPosition >= 0 ? '#22543d' : '#9b2c2c'};">${this.format_currency(Math.abs(netPosition))}</div>
 					</div>
 				</div>
 			</div>
-		`;
+			<div id="combined_datatable"></div>
+			<div class="gl-report-summary" style="margin-top: 12px;">
+				<strong>${recData.length}</strong> receivables, <strong>${payData.length}</strong> payables
+			</div>
+		`);
+
+		// Destroy existing combined datatable
+		if (this.combined_datatable) {
+			this.combined_datatable.destroy();
+		}
+
+		// Create DataTable
+		this.combined_datatable = new frappe.DataTable('#combined_datatable', {
+			columns: dtColumns,
+			data: combinedData,
+			serialNoColumn: false,
+			checkboxColumn: false,
+			cellHeight: 35,
+			layout: 'fluid',
+			noDataMessage: 'No data',
+			getEditor: () => null
+		});
 	}
 }
+
 
 
