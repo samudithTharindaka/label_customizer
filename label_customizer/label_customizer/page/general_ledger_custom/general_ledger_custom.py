@@ -651,10 +651,169 @@ def get_combined_aging_report(filters):
         }
 
 
+def is_summary_row(row, columns):
+    """
+    Check if a row is a summary row (Opening, Total, Closing)
+    """
+    if not isinstance(row, dict):
+        return False
+    
+    # Check account column for summary keywords
+    account_value = str(row.get('account', '') or '').replace("'", '').lower()
+    if 'opening' in account_value or 'total' in account_value or 'closing' in account_value:
+        return True
+    
+    # Check if gl_entry is null but account has a value starting with quote
+    gl_entry = row.get('gl_entry')
+    account = row.get('account')
+    if not gl_entry and isinstance(account, str) and account.startswith("'"):
+        return True
+    
+    return False
+
+
+def is_empty_row(row, columns):
+    """
+    Check if a row is empty (all values are null/empty/zero)
+    """
+    if not isinstance(row, dict):
+        return True
+    
+    gl_entry = row.get('gl_entry')
+    account = row.get('account')
+    return not gl_entry and (not account or account is None)
+
+
+def remove_duplicate_rows(rows, columns):
+    """
+    Remove intermediate summary rows - keep only data rows and the LAST Total/Closing rows
+    This mirrors the JavaScript logic for consistency between display and export
+    """
+    data_rows = []
+    last_opening_row = None
+    last_total_row = None
+    last_closing_row = None
+    
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        
+        # Skip empty rows
+        if is_empty_row(row, columns):
+            continue
+        
+        if is_summary_row(row, columns):
+            # Track the LAST occurrence of each summary type
+            account_value = str(row.get('account', '') or '').replace("'", '').lower()
+            
+            if 'opening' in account_value and 'closing' not in account_value and 'total' not in account_value:
+                last_opening_row = row
+            elif 'closing' in account_value:
+                last_closing_row = row
+            elif 'total' in account_value and 'closing' not in account_value:
+                last_total_row = row
+        else:
+            # Include all data rows
+            data_rows.append(row)
+    
+    # Build final rows list
+    final_rows = []
+    
+    # Add opening row at the beginning if it has meaningful values
+    if last_opening_row:
+        has_values = (
+            float(last_opening_row.get('debit', 0) or 0) != 0 or
+            float(last_opening_row.get('credit', 0) or 0) != 0 or
+            float(last_opening_row.get('balance', 0) or 0) != 0
+        )
+        if has_values:
+            final_rows.append(last_opening_row)
+    
+    # Add data rows
+    final_rows.extend(data_rows)
+    
+    # Add summary rows at the end
+    if last_total_row:
+        final_rows.append(last_total_row)
+    if last_closing_row:
+        final_rows.append(last_closing_row)
+    
+    return final_rows
+
+
+def get_aging_columns_only(columns):
+    """
+    Filter to only show aging-related columns: Party, Outstanding/Balance, and aging buckets
+    """
+    aging_columns = []
+    
+    for col in columns:
+        if not isinstance(col, dict):
+            continue
+        
+        fieldname = (col.get('fieldname', '') or '').lower()
+        label = (col.get('label', '') or '').lower()
+        
+        # Include party columns
+        if fieldname in ['party', 'party_name']:
+            aging_columns.append(col)
+            continue
+        
+        # Include outstanding/balance columns
+        if fieldname in ['outstanding', 'outstanding_amount', 'balance'] or \
+           'outstanding' in label or 'balance' in label:
+            aging_columns.append(col)
+            continue
+        
+        # Include aging bucket columns (range1, range2, etc. or labels like "0-30", "31-60")
+        if fieldname.startswith('range') or fieldname.startswith('age_'):
+            aging_columns.append(col)
+            continue
+        
+        # Include columns with numeric range labels (0-30, 31-60, etc.)
+        import re
+        if re.match(r'^\d+-\d+', label) or re.match(r'^\d+\+', label) or 'above' in label:
+            aging_columns.append(col)
+            continue
+    
+    return aging_columns
+
+
+def filter_aging_rows(rows, columns):
+    """
+    Filter aging rows to only include rows with non-zero aging values
+    """
+    aging_columns = get_aging_columns_only(columns)
+    filtered_rows = []
+    
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        
+        # Check if any aging column has a non-zero value
+        has_aging_value = False
+        for col in aging_columns:
+            fieldname = col.get('fieldname', '')
+            if fieldname in ['party', 'party_name']:
+                continue
+            value = row.get(fieldname)
+            if value and float(value or 0) != 0:
+                has_aging_value = True
+                break
+        
+        if has_aging_value:
+            filtered_rows.append(row)
+    
+    return filtered_rows
+
+
 @frappe.whitelist()
 def export_to_excel(filters):
     """
-    Export General Ledger data to Excel
+    Export General Ledger data to Excel with exact data as shown in tables.
+    Includes:
+    1. General Ledger data with one Total and Closing row at the end
+    2. Aging Analysis table (if enabled) at the end
     """
     # Parse filters if string
     if isinstance(filters, str):
@@ -669,21 +828,97 @@ def export_to_excel(filters):
         
         # Get report data
         result = get_report_data(filters)
-        columns = result['columns']
-        data = result['data']
+        columns = result.get('columns', [])
+        data = result.get('data', [])
+        aging_data = result.get('aging_data')
+        
+        # Remove duplicate/intermediate summary rows (same logic as frontend)
+        cleaned_data = remove_duplicate_rows(data, columns)
         
         # Prepare data for Excel
         xlsx_data = []
         
-        # Add headers
-        headers = [col['label'] for col in columns]
-        xlsx_data.append(headers)
+        # ===== SECTION 1: GENERAL LEDGER =====
+        xlsx_data.append(['GENERAL LEDGER REPORT'])
+        xlsx_data.append([])  # Empty row
         
-        # Add rows
-        for row in data:
+        # Add filter info
+        xlsx_data.append(['Company:', filters.get('company', '')])
+        xlsx_data.append(['From Date:', filters.get('from_date', '')])
+        xlsx_data.append(['To Date:', filters.get('to_date', '')])
+        if filters.get('party_type'):
+            xlsx_data.append(['Party Type:', filters.get('party_type', '')])
+        if filters.get('party'):
+            party_val = filters.get('party')
+            if isinstance(party_val, list):
+                party_val = ', '.join(party_val)
+            xlsx_data.append(['Party:', party_val])
+        xlsx_data.append([])  # Empty row
+        
+        # Add GL headers
+        gl_headers = [col.get('label', col.get('fieldname', '')) for col in columns]
+        xlsx_data.append(gl_headers)
+        
+        # Add GL rows
+        for row in cleaned_data:
             if isinstance(row, dict):
-                row_data = [row.get(col['fieldname'], '') for col in columns]
+                row_data = []
+                for col in columns:
+                    fieldname = col.get('fieldname', '')
+                    value = row.get(fieldname, '')
+                    # Clean summary row labels (remove quotes)
+                    if isinstance(value, str) and value.startswith("'"):
+                        value = value.replace("'", '')
+                    row_data.append(value)
                 xlsx_data.append(row_data)
+        
+        # ===== SECTION 2: AGING ANALYSIS (if present) =====
+        if aging_data and not aging_data.get('error'):
+            aging_columns = aging_data.get('columns', [])
+            aging_rows = aging_data.get('data', [])
+            party_type = aging_data.get('party_type', 'Customer')
+            
+            if aging_columns and aging_rows:
+                # Add separator
+                xlsx_data.append([])
+                xlsx_data.append([])
+                xlsx_data.append(['=' * 50])
+                xlsx_data.append([])
+                
+                # Add aging section header
+                report_type = 'Receivables' if party_type == 'Customer' else 'Payables'
+                xlsx_data.append([f'AGING ANALYSIS - {report_type.upper()}'])
+                xlsx_data.append([])
+                
+                # Filter to only aging-related columns
+                filtered_aging_columns = get_aging_columns_only(aging_columns)
+                
+                if filtered_aging_columns:
+                    # Add aging headers
+                    aging_headers = [col.get('label', col.get('fieldname', '')) for col in filtered_aging_columns]
+                    xlsx_data.append(aging_headers)
+                    
+                    # Filter and add aging rows
+                    filtered_aging_rows = filter_aging_rows(aging_rows, aging_columns)
+                    
+                    for row in filtered_aging_rows:
+                        if isinstance(row, dict):
+                            row_data = []
+                            for col in filtered_aging_columns:
+                                fieldname = col.get('fieldname', '')
+                                value = row.get(fieldname, '')
+                                # Format currency values
+                                if col.get('fieldtype') in ['Currency', 'Float'] and value:
+                                    try:
+                                        value = float(value or 0)
+                                    except:
+                                        pass
+                                row_data.append(value)
+                            xlsx_data.append(row_data)
+                    
+                    # Add summary row
+                    xlsx_data.append([])
+                    xlsx_data.append([f'Total {report_type}: {len(filtered_aging_rows)} parties with outstanding'])
         
         # Create Excel file
         xlsx_file = make_xlsx(xlsx_data, "General Ledger Custom")
