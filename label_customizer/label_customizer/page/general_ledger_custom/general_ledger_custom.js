@@ -267,6 +267,59 @@ frappe.pages['general-ledger-custom'].on_page_load = function (wrapper) {
 		.gl-advanced-filters.show {
 			display: block;
 		}
+		
+		/* Scrollable Table Containers */
+		.datatable-wrapper {
+			max-height: 500px;
+			overflow-y: auto;
+			overflow-x: auto;
+			border: 1px solid #e2e8f0;
+			border-radius: 4px;
+			background: #fff;
+		}
+		.datatable-wrapper .dt-scrollable {
+			overflow-x: auto !important;
+		}
+		.datatable-wrapper .frappe-datatable {
+			min-width: 100%;
+		}
+		.datatable-wrapper .dt-header {
+			position: sticky;
+			top: 0;
+			z-index: 10;
+		}
+		
+		/* GL table specific height */
+		#gl_datatable_wrapper {
+			max-height: 500px;
+		}
+		
+		/* Aging table specific height */
+		#aging_datatable_wrapper {
+			max-height: 400px;
+		}
+		
+		/* Combined table specific height */
+		#combined_datatable_wrapper {
+			max-height: 600px;
+		}
+		
+		/* Custom scrollbar styling */
+		.datatable-wrapper::-webkit-scrollbar {
+			width: 8px;
+			height: 8px;
+		}
+		.datatable-wrapper::-webkit-scrollbar-track {
+			background: #f1f1f1;
+			border-radius: 4px;
+		}
+		.datatable-wrapper::-webkit-scrollbar-thumb {
+			background: #cbd5e0;
+			border-radius: 4px;
+		}
+		.datatable-wrapper::-webkit-scrollbar-thumb:hover {
+			background: #a0aec0;
+		}
 	`;
 	document.head.appendChild(style);
 
@@ -1309,9 +1362,11 @@ class GeneralLedgerCustom {
 		// Count data rows (exclude summary rows)
 		const dataRowCount = dtData.filter(row => !this.is_summary_row(row, columns)).length;
 
-		// Clear container and create DataTable wrapper
+		// Clear container and create DataTable wrapper with scrollable container
 		this.wrapper.find('#report_container').html(`
-			<div id="gl_datatable" style="margin-bottom: 12px;"></div>
+			<div id="gl_datatable_wrapper" class="datatable-wrapper">
+				<div id="gl_datatable"></div>
+			</div>
 			<div class="gl-report-summary">
 				<strong>${dataRowCount}</strong> entries found
 			</div>
@@ -1322,14 +1377,14 @@ class GeneralLedgerCustom {
 			this.datatable.destroy();
 		}
 
-		// Create new DataTable
+		// Create new DataTable with fixed layout for horizontal scrolling
 		this.datatable = new frappe.DataTable('#gl_datatable', {
 			columns: dtColumns,
 			data: dtData,
 			serialNoColumn: false,
 			checkboxColumn: false,
 			cellHeight: 35,
-			layout: 'fluid',
+			layout: 'fixed',
 			noDataMessage: 'No data found',
 			getEditor: () => null // Disable editing
 		});
@@ -1452,12 +1507,14 @@ class GeneralLedgerCustom {
 			return rowData;
 		});
 
-		// Render
+		// Render with scrollable wrapper
 		agingContainer.html(`
 			<div class="aging-section-header">
 				<h5>Aging Analysis - ${partyType === 'Customer' ? 'Receivables' : 'Payables'}</h5>
 			</div>
-			<div id="aging_datatable"></div>
+			<div id="aging_datatable_wrapper" class="datatable-wrapper">
+				<div id="aging_datatable"></div>
+			</div>
 			<div class="gl-report-summary" style="margin-top: 12px;">
 				<strong>${filteredRows.length}</strong> parties with outstanding
 			</div>
@@ -1468,14 +1525,14 @@ class GeneralLedgerCustom {
 			this.aging_datatable.destroy();
 		}
 
-		// Create DataTable
+		// Create DataTable with fixed layout for horizontal scrolling
 		this.aging_datatable = new frappe.DataTable('#aging_datatable', {
 			columns: dtColumns,
 			data: dtData,
 			serialNoColumn: false,
 			checkboxColumn: false,
 			cellHeight: 35,
-			layout: 'fluid',
+			layout: 'fixed',
 			noDataMessage: 'No aging data',
 			getEditor: () => null
 		});
@@ -1833,7 +1890,7 @@ class GeneralLedgerCustom {
 			}))
 		];
 
-		// Render HTML
+		// Render HTML with scrollable wrapper
 		this.wrapper.find('#combined_report_container').html(`
 			<div class="row" style="margin-bottom: 20px;">
 				<div class="col-md-4">
@@ -1855,7 +1912,9 @@ class GeneralLedgerCustom {
 					</div>
 				</div>
 			</div>
-			<div id="combined_datatable"></div>
+			<div id="combined_datatable_wrapper" class="datatable-wrapper">
+				<div id="combined_datatable"></div>
+			</div>
 			<div class="gl-report-summary" style="margin-top: 12px;">
 				<strong>${recData.length}</strong> receivables, <strong>${payData.length}</strong> payables
 			</div>
@@ -1866,14 +1925,14 @@ class GeneralLedgerCustom {
 			this.combined_datatable.destroy();
 		}
 
-		// Create DataTable
+		// Create DataTable with fixed layout for horizontal scrolling
 		this.combined_datatable = new frappe.DataTable('#combined_datatable', {
 			columns: dtColumns,
 			data: combinedData,
 			serialNoColumn: false,
 			checkboxColumn: false,
 			cellHeight: 35,
-			layout: 'fluid',
+			layout: 'fixed',
 			noDataMessage: 'No data',
 			getEditor: () => null
 		});
